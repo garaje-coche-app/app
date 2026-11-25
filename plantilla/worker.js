@@ -563,6 +563,7 @@ function processCar(db, st, c, opts = {}) {
         .bind(c.ts, c.odometer_km, st.snapFuel, c.fuel_pct, litres));
       notes.push({ title: 'Repostaje detectado', body: `Unos ${fmt(litres, 1)} L. Toca para apuntar el precio.`, url: '#datos', tag: 'refuel' });
       st.newRefuel = { ts: c.ts, litres, lat: c.location?.lat, lon: c.location?.lon };
+      st.fullEst = 0; // depósito lleno: se empieza a contar de cero
     }
     st.snapFuel = c.fuel_pct;
     st.last = { ts: c.ts, ignition: c.ignition, dts: c.data_ts || null };
@@ -620,7 +621,15 @@ function processCar(db, st, c, opts = {}) {
       const dur = Math.max(60, Math.round((t.end_ts - t.start_ts) / 1000));
       const noLive = !t.moving; // el coche no mandó nada en marcha: sin velocidad ni rpm reales
       // El aforador no es lineal: se corrige con el factor calibrado en los repostajes (litros reales / litros según aforador)
-      const usedL = Math.max(0, ((t.start_fuel - (c.fuel_pct ?? t.end_fuel)) / 100) * TANK_L) * (opts.fuelFactor || 1);
+      let usedL = Math.max(0, ((t.start_fuel - (c.fuel_pct ?? t.end_fuel)) / 100) * TANK_L) * (opts.fuelFactor || 1);
+      // Recién lleno, el aforador se queda clavado en 100 % los primeros 30-60 km: se estima con tu consumo medio
+      // y, cuando por fin baja, se resta lo ya estimado para no contarlo dos veces
+      const endF = c.fuel_pct ?? t.end_fuel, ref = opts.refL100 || 7.5;
+      if (t.start_fuel >= 99) {
+        const est = km * ref / 100;
+        if (endF >= 99) { usedL = est; st.fullEst = (st.fullEst || 0) + est; }
+        else { usedL = Math.max(est * 0.5, usedL - (st.fullEst || 0)); st.fullEst = 0; }
+      } else st.fullEst = 0;
       const pts = t.pts.slice();
       if (c.location) pts.push([c.location.lat, c.location.lon, 0, c.data_ts || c.ts]);
       const end = c.location ? [c.location.lat, c.location.lon] : t.end;
@@ -679,7 +688,11 @@ async function ingest(env, car, st) {
   applyTyrePrefs(car, await getTyrePrefs(env));
   const guard = await getGuard(env);
   const ff = await env.DB.prepare("SELECT v FROM kv WHERE k = 'fuel_factor'").first();
-  const { stmts, notes } = processCar(env.DB, st, car, { guard, fuelFactor: ff ? Number(ff.v) : 1 });
+  let refL100 = null;
+  if (st.trip) { // consumo medio reciente (sin circuito), para cuando el aforador está clavado en lleno
+    try { const q = await env.DB.prepare('SELECT SUM(fuel_used_l) l, SUM(km) km FROM trips WHERE COALESCE(track, 0) = 0 AND fuel_used_l > 0 AND km >= 3 AND start_ts > ?').bind(Date.now() - 60 * 864e5).first(); if (q && q.km > 50) refL100 = q.l / q.km * 100; } catch (e) {}
+  }
+  const { stmts, notes } = processCar(env.DB, st, car, { guard, fuelFactor: ff ? Number(ff.v) : 1, refL100 });
   if (car.ignition === 'off' && car.location && !st.parked) {
     st.parked = { ts: car.data_ts || car.ts, lat: car.location.lat, lon: car.location.lon };
     const has = await env.DB.prepare("SELECT 1 AS x FROM kv WHERE k = 'parking'").first();
