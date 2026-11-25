@@ -1,0 +1,1863 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Mi Garaje">
+<meta name="theme-color" content="#0a0b0d">
+<title>Mi Garaje</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Inter+Tight:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+:root{
+  /* Telemetría: negro de pista, amarillo de señal, verde/ámbar/rojo para estados */
+  --bg:#0a0b0d; --pn:#101215; --ln:#23272c; --ln2:#1b1e22; --tx:#f4f5f6; --mu:#7d858f;
+  --ac:#ffd400; --ok:#2ee59d; --wa:#ffb21e; --bad:#ff4d3d; --blue:#4aa3ff;
+  --mono:'Chakra Petch',ui-monospace,monospace; --body:'Inter Tight',system-ui,sans-serif;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--tx);font-family:var(--body);-webkit-text-size-adjust:100%}
+body{display:flex;flex-direction:column;padding-top:env(safe-area-inset-top);position:fixed;top:0;left:0;right:0;bottom:auto;height:100vh;height:100dvh;height:var(--app-h,100dvh);overflow:hidden}
+header{padding:16px 20px 12px;display:flex;justify-content:space-between;align-items:center;gap:12px}
+main{flex:1;min-height:0;overflow-y:auto;padding:0 16px 24px;display:flex;flex-direction:column;gap:10px;-webkit-overflow-scrolling:touch}
+main>*,body>header,body>nav,nav{flex-shrink:0}
+.leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(.85) contrast(.9) saturate(.35)}
+.vpshort nav{padding-bottom:8px}
+nav{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));border-top:1px solid var(--ln2);background:var(--bg);padding:6px 6px calc(8px + env(safe-area-inset-bottom))}
+nav button{background:none;border:0;color:var(--mu);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font:600 11px var(--mono);letter-spacing:.08em;min-height:52px;text-transform:uppercase}
+nav button.on{color:var(--ac)}
+button{cursor:pointer;font-family:var(--body);color:inherit}
+button:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
+.m{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.k{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--mu);font-weight:600}
+.pn{background:var(--pn);border:1px solid var(--ln);border-radius:14px}
+.pad{padding:14px 16px}
+.col{display:flex;flex-direction:column}
+.row{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.g2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.g3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.title{font-family:var(--mono);font-size:26px;font-weight:700;letter-spacing:.02em;line-height:1.1}
+.muted{color:var(--mu);font-size:13px;margin:0}
+.chip{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--ln);border-radius:8px;padding:7px 10px;font:600 12px var(--mono);letter-spacing:.06em;text-transform:uppercase;white-space:nowrap}
+.chip i{width:8px;height:8px;border-radius:50%;background:currentColor;display:block}
+.live i{animation:pulse 1.2s infinite}
+@keyframes pulse{50%{opacity:.25}}
+.tag{font:600 11px var(--mono);letter-spacing:.08em;border-radius:6px;padding:3px 8px;border:1px solid;text-transform:uppercase;white-space:nowrap}
+.alert{border:1px solid #4a3a12;background:#1f1a0d;color:var(--wa);border-radius:12px;padding:12px 14px;font-size:14px;font-weight:600}
+.err{border:1px solid #4a1d18;background:#1f0f0d;color:#ff9a8f;border-radius:12px;padding:12px 14px;font-size:14px}
+.okmsg{border:1px solid #17402e;background:#0d1f17;color:#9cf2cd;border-radius:12px;padding:12px 14px;font-size:14px}
+label.btn{flex-direction:row;font:700 13px var(--mono);letter-spacing:.08em;color:#0a0b0d;cursor:pointer}
+label.btn.sec{color:var(--tx)}
+.pumpIn{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.btn{min-height:46px;border:0;border-radius:10px;font:700 13px var(--mono);letter-spacing:.08em;text-transform:uppercase;background:var(--ac);color:#0a0b0d;padding:0 16px;display:inline-flex;align-items:center;justify-content:center;text-decoration:none}
+.btn.sec{background:transparent;color:var(--tx);border:1px solid var(--ln)}
+.btn.ghost{background:transparent;color:var(--ac);border:1px dashed #3a3f46}
+.btn.danger{background:transparent;color:var(--bad);border:1px solid #4a1d18}
+.btns{display:flex;gap:8px;flex-wrap:wrap}.btns>*{flex:1}
+.li{display:grid;align-items:center;gap:12px;width:100%;text-align:left;background:none;border:0;border-top:1px solid var(--ln2);padding:12px 0}
+.bar{height:10px;border-radius:5px;background:#1d2126;overflow:hidden}.bar>div{height:100%;border-radius:5px}
+label{display:flex;flex-direction:column;gap:6px;font:600 11px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--mu)}
+input{font:16px var(--body);padding:12px;border-radius:10px;border:1px solid var(--ln);background:#0d0f11;color:var(--tx);width:100%}
+.seg-pick{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--ln);border-radius:10px;overflow:hidden}
+.seg-pick button{background:none;border:0;min-height:44px;font:700 13px var(--mono);color:var(--mu)}
+.seg-pick button.on{background:var(--ac);color:#0a0b0d}
+.map{width:100%;height:220px;background:#0f1114}
+.mini{width:68px;height:68px;border-radius:10px;overflow:hidden;flex:none;background:#15181c}
+.sheet-bg{position:fixed;inset:0;background:rgba(0,0,0,.7);display:flex;align-items:flex-end;justify-content:center;z-index:2000}
+.sheet{background:var(--pn);border:1px solid var(--ln);border-radius:18px 18px 0 0;width:100%;max-width:520px;max-height:90%;overflow-y:auto;padding:20px 16px calc(20px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:14px}
+.leaflet-container{background:#0f1114;font-family:var(--body)}
+.leaflet-control-attribution{font-size:9px;background:rgba(10,11,13,.7)!important;color:#7d858f!important}
+.leaflet-control-attribution a{color:#9aa1a9!important}
+svg text{font-family:var(--mono)}
+/* Animaciones de entrada (solo al cambiar de pestaña) */
+.anim .pn,.anim .alert{animation:rise .45s cubic-bezier(.2,.8,.2,1) both}
+.anim .pn:nth-child(2){animation-delay:.04s}.anim .pn:nth-child(3){animation-delay:.08s}.anim .pn:nth-child(4){animation-delay:.12s}.anim .pn:nth-child(5){animation-delay:.16s}.anim .pn:nth-child(n+6){animation-delay:.2s}
+@keyframes rise{from{opacity:0;transform:translateY(10px)}}
+.anim .arc{animation:arc 1.1s cubic-bezier(.2,.8,.2,1) both .1s}
+@keyframes arc{from{stroke-dashoffset:var(--len)}}
+.anim .rseg{animation:seg .25s both}
+@keyframes seg{from{opacity:.05}}
+@media (prefers-reduced-motion:reduce){.anim *{animation:none!important}.live i{animation:none}}
+/* Modo conducción */
+#drive{position:fixed;inset:0;z-index:3000;background:#000;color:#f4f5f6;display:flex;flex-direction:column;padding:calc(18px + env(safe-area-inset-top)) 18px calc(24px + env(safe-area-inset-bottom));gap:18px;border:0;text-align:left;width:100%}
+#drive.night{--ac:#ff8a3d;--ok:#3fbf8a;color:#b9b2a8}
+#drive.night .big-speed{color:#d8d0c4}
+.big-speed{font-family:var(--mono);font-weight:700;font-size:min(46vw,190px);line-height:.85;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.gear-box{width:112px;height:122px;background:var(--ac);border-radius:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#000}
+</style>
+</head>
+<body>
+<header>
+  <div class="col" style="gap:2px"><span class="k" id="hSub">Fiesta ST · Mk8</span><span class="title" id="hTitle">MI ST</span></div>
+  <div style="display:flex;align-items:center;gap:8px">
+    <span id="badge"></span>
+    <button class="chip" id="cfgBtn" aria-label="Ajustes" style="padding:9px;background:none">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+    </button>
+  </div>
+</header>
+<main id="main"></main>
+<nav id="nav">
+  <button data-tab="estado"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 13l2-5a2 2 0 0 1 2-1h10a2 2 0 0 1 2 1l2 5v4h-2a2 2 0 0 1-4 0H9a2 2 0 0 1-4 0H3z"/></svg>Estado</button>
+  <button data-tab="viajes"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="6" cy="18" r="2"/><circle cx="18" cy="6" r="2"/><path d="M8 18h6a4 4 0 0 0 0-8h-4a4 4 0 0 1 0-8h6"/></svg>Viajes</button>
+  <button data-tab="motor"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 14l4-4"/><path d="M3.3 17a9 9 0 1 1 17.4 0"/></svg>Motor</button>
+  <button data-tab="datos"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Datos</button>
+  <button data-tab="taller"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z"/></svg>Taller</button>
+</nav>
+<div id="sheetHost"></div>
+<div id="driveHost"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+const $ = s => document.querySelector(s);
+const nf = (v, d = 0) => v == null || isNaN(v) ? '—' : Number(v).toLocaleString('es-ES', { minimumFractionDigits: d, maximumFractionDigits: d });
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const num = v => { const n = parseFloat(String(v).replace(',', '.')); return isNaN(n) ? null : n; };
+const C = { ac: '#ffd400', ok: '#2ee59d', wa: '#ffb21e', bad: '#ff4d3d', blue: '#4aa3ff', mu: '#7d858f', tx: '#f4f5f6' };
+const TABS = ['estado', 'viajes', 'motor', 'datos', 'taller'];
+const TITLES = { estado: ['Fiesta ST · Mk8', 'MI ST'], viajes: ['Últimos trayectos', 'VIAJES'], motor: ['Telemetría', 'MOTOR'], datos: ['Consumo, gasto y batería', 'DATOS'], taller: ['Mantenimiento', 'TALLER'], ajustes: ['Conexión y avisos', 'AJUSTES'] };
+// CARTO ahora pide clave: mapa de OpenStreetMap (gratis, sin clave) oscurecido con un filtro.
+const TILE = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+const standalone = window.navigator.standalone === true || matchMedia('(display-mode: standalone)').matches;
+
+let cfg = {};
+try { cfg = JSON.parse(localStorage.getItem('fst_cfg') || '{}'); } catch (e) {}
+cfg.fuel = cfg.fuel === '95' ? '95' : '98';
+const hashTab = location.hash.slice(1);
+let tab = !(cfg.url && cfg.key) ? 'ajustes' : TABS.includes(hashTab) ? hashTab : 'estado';
+let live = null, hist = null, battery = null, refuels = null, trips = null, records = null, tripDetail = null, maint = null, fuel = null, fuelErr = null;
+let error = null, notice = null, timer = null, sheet = null, loaded = {}, animate = true;
+let trackPrepData = null, prepTab = 'antes';
+let carCfg = (() => { try { return JSON.parse(localStorage.getItem('fst_car') || 'null'); } catch (e) { return null; } })(), fordSt = null, backups = null, favHist = null, advice = null, monthSum = null, engine = null, lastTrip = null, viajesPeriod = 'semana', tripFilter = 'todos', tripsAll = false, expenses = null, commute = null, places = [], tyrePrefs = null, tyreSet = null, deadlines = null, trackdays = null, driveDismissed = false, driveForced = false, parking = null, guard = null, circuits = null, customCircuits = [];
+
+// ---------- Vibración (Android: vibrate; iPhone: truco del interruptor nativo) ----------
+const hapEl = (() => {
+  const l = document.createElement('label');
+  l.setAttribute('aria-hidden', 'true');
+  l.style.cssText = 'position:fixed;left:-100px;top:0;width:1px;height:1px;overflow:hidden;opacity:0';
+  const i = document.createElement('input'); i.type = 'checkbox'; i.setAttribute('switch', ''); i.tabIndex = -1;
+  l.appendChild(i); document.body.appendChild(l); return l;
+})();
+function haptic() { try { if (navigator.vibrate) navigator.vibrate(8); else hapEl.click(); } catch (e) {} }
+document.addEventListener('click', e => { if (e.target.closest('button, a.btn, a.li')) haptic(); }, true);
+
+// ---------- API ----------
+async function api(path, opts = {}) {
+  const headers = { 'x-app-key': cfg.key };
+  if (opts.body) headers['content-type'] = 'application/json';
+  let r;
+  try { r = await fetch(cfg.url.replace(/\/+$/, '') + path, { ...opts, headers }); }
+  catch (e) { throw new Error('No se puede conectar con el servidor. Revisa la URL en Ajustes o tu conexión.'); }
+  const j = await r.json().catch(() => ({ error: 'El servidor no ha devuelto datos válidos' }));
+  if (!r.ok) throw new Error(j.error || 'Error ' + r.status);
+  return j;
+}
+
+async function loadLive() {
+  const wasRunning = live && live.ignition !== 'off';
+  try { live = await api('/api/live'); error = null; } catch (e) { error = e.message; }
+  const running = live && live.ignition !== 'off';
+  if (!running) driveDismissed = false;
+  if (running && !wasRunning && !driveDismissed) haptic();
+  renderDrive();
+  if (!sheet && ['estado', 'motor'].includes(tab)) render(); else renderBadge();
+  schedule();
+}
+
+const stale = (key, ms) => !loaded[key] || Date.now() - loaded[key] > ms;
+async function loadFor(t, force) {
+  const jobs = [];
+  const add = (key, ms, fn) => { if (force || stale(key, ms)) jobs.push(fn().then(() => { loaded[key] = Date.now(); })); };
+  if (t === 'estado') add('parking', 30e3, async () => { parking = await api('/api/parking'); });
+  if (t === 'ajustes') add('guard', 30e3, async () => { guard = await api('/api/guard'); });
+  if (t === 'ajustes') add('tyres', 300e3, async () => { tyrePrefs = await api('/api/tyres'); });
+  if (t === 'ajustes') add('fordst', 60e3, async () => { [fordSt, backups] = await Promise.all([api('/api/ford/status'), api('/api/backups').catch(() => ({ backups: [] }))]); });
+  if (t === 'estado' || t === 'motor') add('battery', 300e3, async () => { battery = await api('/api/battery'); });
+  if (t === 'taller') { add('tyreset', 60e3, async () => { tyreSet = await api('/api/tyreset'); }); add('deadlines', 60e3, async () => { deadlines = (await api('/api/deadlines')).items; }); }
+  if (t === 'viajes') add('trackdays', 120e3, async () => { trackdays = (await api('/api/trackdays')).days; });
+  if (t === 'estado' || t === 'taller') add('maint', t === 'taller' ? 30e3 : 300e3, async () => { maint = await api('/api/maintenance'); });
+  if (t === 'estado' || t === 'datos') add('fuel', 600e3, async () => {
+    try { fuel = await api('/api/fuel?type=' + cfg.fuel); fuelErr = null; } catch (e) { fuelErr = e.message; }
+  });
+  if (t === 'viajes') {
+    add('trips', 60e3, async () => { const r = await api('/api/trips?limit=200'); trips = r.trips; commute = r.commute; places = r.places || []; });
+    add('records', 300e3, async () => { records = await api('/api/trips/records'); });
+    add('circuits', 300e3, async () => { const r = await api('/api/circuits'); circuits = r.circuits; customCircuits = r.custom || []; });
+  }
+  if (t === 'datos') add('datos', 120e3, async () => { [hist, refuels] = await Promise.all([api('/api/history?days=7'), api('/api/refuels')]); });
+  if (t === 'datos') add('favhist', 600e3, async () => { favHist = await api('/api/fuel/fav/prices'); });
+  add('carcfg', 3600e3, async () => { carCfg = await api('/api/car-config'); try { localStorage.setItem('fst_car', JSON.stringify(carCfg)); } catch (e) {} });
+  if (t === 'estado') add('lasttrip', 120e3, async () => { const r = await api('/api/trips?limit=1'); lastTrip = r.trips && r.trips[0] || null; });
+  if (t === 'estado' || t === 'datos') add('advice', 900e3, async () => { advice = await api('/api/fuel/advice'); });
+  if (t === 'viajes') add('month', 600e3, async () => { monthSum = await api('/api/month'); });
+  if (t === 'motor') add('trackprep', 1800e3, async () => { trackPrepData = await api('/api/trackprep'); });
+  if (t === 'motor') add('engine', 600e3, async () => { engine = await api('/api/engine?days=30'); });
+  if (t === 'datos') add('expenses', 120e3, async () => { expenses = await api('/api/expenses'); });
+  if (!jobs.length) return;
+  try { await Promise.all(jobs); error = null; } catch (e) { error = e.message; }
+  if (tab === t && !sheet) render();
+}
+
+function schedule() {
+  clearTimeout(timer);
+  if (document.hidden || !cfg.url || tab === 'ajustes') return;
+  const running = live && live.ignition !== 'off';
+  timer = setTimeout(loadLive, running ? 5000 : 60000);
+}
+
+// ---------- Formatos ----------
+function titleCaseJs(t) { return String(t || '').toLowerCase().replace(/(^|[\s-])\p{L}/gu, m => m.toUpperCase()); }
+function ago(ts) {
+  const s = Math.round((Date.now() - ts) / 1000);
+  if (s < 30) return 'ahora mismo';
+  if (s < 60) return 'hace ' + s + ' s';
+  if (s < 3600) return 'hace ' + Math.round(s / 60) + ' min';
+  if (s < 86400) return 'hace ' + Math.round(s / 3600) + ' h';
+  return 'hace ' + Math.round(s / 86400) + ' d';
+}
+const hm = ts => new Date(ts).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+function dayLabel(ts) {
+  const d = new Date(ts), t = new Date(), k = x => x.toDateString();
+  if (k(d) === k(t)) return 'Hoy';
+  const y = new Date(t); y.setDate(t.getDate() - 1);
+  if (k(d) === k(y)) return 'Ayer';
+  return d.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric' });
+}
+const clock = s => { s = Math.round(s); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), ss = s % 60; return h ? `${h}h${String(m).padStart(2, '0')}` : `${m}:${String(ss).padStart(2, '0')}`; };
+const tyreLow = (c, k) => Array.isArray(c.tyres_low) ? c.tyres_low.includes(k) : c.tyres && c.tyres[k] != null && c.tyres[k] < 2.2;
+const speedCol = v => v < 70 ? C.ac : v < 95 ? C.wa : C.bad;
+const pad2 = n => String(n).padStart(2, '0');
+
+function sunUp(lat, lon, d = new Date()) {
+  const r = Math.PI / 180;
+  const day = (Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()) - Date.UTC(d.getUTCFullYear(), 0, 0)) / 864e5;
+  const decl = -23.44 * Math.cos(r * 360 / 365 * (day + 10));
+  const ha = (d.getUTCHours() + d.getUTCMinutes() / 60 - 12) * 15 + lon;
+  const el = Math.asin(Math.sin(lat * r) * Math.sin(decl * r) + Math.cos(lat * r) * Math.cos(decl * r) * Math.cos(ha * r)) / r;
+  return el > -4;
+}
+
+// ---------- Piezas gráficas ----------
+function arcPath(cx, cy, rad, a0, a1) {
+  const p = a => [cx + rad * Math.cos(a * Math.PI / 180), cy + rad * Math.sin(a * Math.PI / 180)];
+  const [x0, y0] = p(a0), [x1, y1] = p(a1);
+  return `M${x0.toFixed(1)} ${y0.toFixed(1)} A${rad} ${rad} 0 ${a1 - a0 > 180 ? 1 : 0} 1 ${x1.toFixed(1)} ${y1.toFixed(1)}`;
+}
+function fuelArc(pct) {
+  const f = Math.max(0, Math.min(1, (pct || 0) / 100));
+  const len = 54 * Math.PI * 1.5;
+  const col = pct < 15 ? C.bad : C.ac;
+  return `<svg width="112" height="112" viewBox="0 0 132 132" role="img" aria-label="Depósito al ${nf(pct)} %">
+    <path d="${arcPath(66, 66, 54, 135, 405)}" fill="none" stroke="#1d2126" stroke-width="10" stroke-linecap="round"/>
+    <path class="arc" style="--len:${len.toFixed(1)}" d="${arcPath(66, 66, 54, 135, 405)}" fill="none" stroke="${col}" stroke-width="10" stroke-linecap="round" stroke-dasharray="${len.toFixed(1)}" stroke-dashoffset="${(len * (1 - f)).toFixed(1)}"/>
+    <text x="66" y="72" text-anchor="middle" fill="#f4f5f6" font-weight="700" font-size="30">${nf(pct)}%</text>
+    <text x="66" y="92" text-anchor="middle" fill="#7d858f" font-weight="600" font-size="10" letter-spacing="2">DEPÓSITO</text></svg>`;
+}
+function revBar(rpm, n = 28, max = 7000, h = 22) {
+  const w = 350, sw = w / n;
+  let out = '';
+  for (let i = 0; i < n; i++) {
+    const r = (i + 1) / n * max;
+    const col = r <= 4000 ? C.ok : r <= 5800 ? C.ac : C.bad;
+    const on = r <= (rpm || 0) + 1;
+    out += `<rect class="rseg" style="animation-delay:${i * 18}ms" x="${(i * sw + 1).toFixed(1)}" y="0" width="${(sw - 3).toFixed(1)}" height="${h}" rx="2" fill="${col}" opacity="${on ? 1 : .13}"/>`;
+  }
+  return `<svg width="100%" height="${h}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" role="img" aria-label="${nf(rpm)} rpm">${out}</svg>`;
+}
+function spark(vals, w = 92, h = 18, col = C.ac, sw = 1.5) {
+  if (!vals || vals.length < 2) return '';
+  const mx = Math.max(...vals), mn = Math.min(...vals);
+  const d = vals.map((v, i) => (i ? 'L' : 'M') + (i * w / (vals.length - 1)).toFixed(1) + ' ' + (h - 2 - (v - mn) / ((mx - mn) || 1) * (h - 4)).toFixed(1)).join(' ');
+  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" aria-hidden="true"><path d="${d}" fill="none" stroke="${col}" stroke-width="${sw}" stroke-linejoin="round"/></svg>`;
+}
+function carTop(c) {
+  const t = c.tyres || {}, col = k => t[k] == null ? '#3a3f46' : tyreLow(c, k) ? C.wa : C.ok;
+  const open = [...(c.doors_open || []), ...(c.windows_open || [])].map(s => String(s).toLowerCase());
+  const has = k => open.some(o => o.includes(k));
+  const line = (x1, y1, x2, y2, k) => has(k) ? `<path d="M${x1} ${y1} L${x2} ${y2}" stroke="${C.bad}" stroke-width="4" stroke-linecap="round"/>` : '';
+  return `<svg width="104" height="200" viewBox="0 0 120 230" role="img" aria-label="Esquema del coche visto desde arriba">
+    <rect x="20" y="8" width="80" height="214" rx="34" fill="#16191d" stroke="#2e333a" stroke-width="2"/>
+    <path d="M30 70 Q60 54 90 70 L85 96 Q60 88 35 96 Z" fill="#23272c"/>
+    <rect x="34" y="102" width="52" height="54" rx="8" fill="#13161a" stroke="#23272c"/>
+    <path d="M35 168 Q60 162 85 168 L90 186 Q60 196 30 186 Z" fill="#23272c"/>
+    <rect x="40" y="10" width="40" height="5" rx="2" fill="${C.ac}" opacity=".8"/>
+    <rect x="8" y="38" width="12" height="36" rx="5" fill="${col('fl')}"/><rect x="100" y="38" width="12" height="36" rx="5" fill="${col('fr')}"/>
+    <rect x="8" y="152" width="12" height="36" rx="5" fill="${col('rl')}"/><rect x="100" y="152" width="12" height="36" rx="5" fill="${col('rr')}"/>
+    ${line(20, 100, -2, 118, 'izq')}${line(100, 100, 122, 118, 'der')}${line(40, 222, 80, 222, 'malet')}${line(40, 8, 80, 8, 'capó')}
+  </svg>`;
+}
+function lineChart(points, key, { min, max, fmt, color, xKey = 'ts', label = 'Gráfica', dayTicks = true, h = 130 }) {
+  if (!points || points.length < 2) return '<p class="muted">Aún no hay datos suficientes.</p>';
+  const W = 340, H = h, L0 = 30, R = 4, T = 6, B = 20;
+  const t0 = points[0][xKey], t1 = points[points.length - 1][xKey];
+  if (min == null || max == null) { // escala automática con un poco de margen
+    const vs = points.map(p => p[key]).filter(v => v != null);
+    const lo = Math.min(...vs), hi = Math.max(...vs), pad = Math.max((hi - lo) * 0.15, 0.005);
+    if (min == null) min = lo - pad; if (max == null) max = hi + pad;
+  }
+  const x = t => L0 + (t - t0) / ((t1 - t0) || 1) * (W - L0 - R);
+  const y = v => T + (1 - (Math.min(max, Math.max(min, v)) - min) / (max - min)) * (H - T - B);
+  const d = points.map((p, i) => (i ? 'L' : 'M') + x(p[xKey]).toFixed(1) + ' ' + y(p[key]).toFixed(1)).join(' ');
+  const area = d + ` L${x(t1).toFixed(1)} ${H - B} L${L0} ${H - B} Z`;
+  const ticks = [min, (min + max) / 2, max].map(v =>
+    `<line x1="${L0}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="#1d2126"/><text x="${L0 - 6}" y="${y(v) + 4}" text-anchor="end" fill="#7d858f" font-size="10">${fmt(v)}</text>`).join('');
+  let xt = '';
+  if (dayTicks && t1 - t0 > 9 * 86400e3) {
+    const fd = t => new Date(t).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
+    xt = [[t0, 'start'], [(t0 + t1) / 2, 'middle'], [t1, 'end']].map(([t, a]) => `<text x="${x(t)}" y="${H - 5}" text-anchor="${a}" fill="#7d858f" font-size="10">${fd(t)}</text>`).join('');
+  } else if (dayTicks) {
+    for (let t = new Date(t0).setHours(24, 0, 0, 0); t < t1; t += 86400e3)
+      xt += `<text x="${x(t)}" y="${H - 5}" text-anchor="middle" fill="#7d858f" font-size="10">${new Date(t).toLocaleDateString('es-ES', { weekday: 'short' }).toUpperCase()}</text>`;
+  } else xt = `<text x="${L0}" y="${H - 5}" fill="#7d858f" font-size="10">${hm(t0)}</text><text x="${W - R}" y="${H - 5}" text-anchor="end" fill="#7d858f" font-size="10">${hm(t1)}</text>`;
+  const last = points[points.length - 1];
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="${esc(label)}">${ticks}${xt}
+    <path d="${area}" fill="${color}" opacity=".1"/><path d="${d}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round"/>
+    <circle cx="${x(last[xKey])}" cy="${y(last[key])}" r="4" fill="${color}"/></svg>`;
+}
+function batteryBars(days) {
+  if (!days || !days.length) return '<p class="muted">Aún no hay datos suficientes.</p>';
+  const min = 11.8, max = 12.8, W = 340, H = 110, L0 = 30, B = 18, T = 6, bw = (W - L0) / days.length;
+  const y = v => T + (1 - (Math.min(max, Math.max(min, v)) - min) / (max - min)) * (H - T - B);
+  const grid = [11.8, 12.2, 12.6].map(v => `<line x1="${L0}" x2="${W}" y1="${y(v)}" y2="${y(v)}" stroke="${v === 12.2 ? C.bad : '#1d2126'}" ${v === 12.2 ? 'stroke-dasharray="4 4" opacity=".6"' : ''}/><text x="${L0 - 6}" y="${y(v) + 4}" text-anchor="end" fill="#7d858f" font-size="10">${nf(v, 1)}</text>`).join('');
+  const bars = days.map((d, i) => {
+    const col = d.min < 12.2 ? C.bad : d.min < 12.4 ? C.wa : C.blue;
+    const lab = i % 2 === (days.length - 1) % 2 ? `<text x="${L0 + i * bw + bw / 2}" y="${H - 4}" text-anchor="middle" fill="#7d858f" font-size="10">${+d.d.slice(8)}</text>` : '';
+    return `<rect x="${(L0 + i * bw + bw * .2).toFixed(1)}" y="${y(d.min).toFixed(1)}" width="${(bw * .6).toFixed(1)}" height="${(H - B - y(d.min)).toFixed(1)}" rx="2" fill="${col}"/>${lab}`;
+  }).join('');
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Voltaje mínimo diario de la batería">${grid}${bars}</svg>`;
+}
+function trendTag(b) {
+  if (!b || b.status === 'sin datos') return `<span class="tag" style="color:${C.mu};border-color:#2e333a">Sin datos</span>`;
+  if (b.status === 'baja') return `<span class="tag" style="color:${C.bad};border-color:#4a1d18">Baja</span>`;
+  if (b.status === 'bajando') return `<span class="tag" style="color:${C.wa};border-color:#4a3a12">Bajando ${nf(Math.abs(b.slope), 2)} V/día</span>`;
+  return `<span class="tag" style="color:${C.ok};border-color:#17402e">Estable</span>`;
+}
+const kv = (label, val, unit = '', color) => `<div class="pn col" style="gap:4px;padding:12px 14px"><span class="k">${label}</span><span class="m" style="font-size:26px;font-weight:700;${color ? 'color:' + color : ''}">${val} <span style="font-size:12px;color:#7d858f;font-weight:500">${unit}</span></span></div>`;
+
+// ---------- Mapas ----------
+const maps = {};
+function mapIn(id, host, opts = {}) {
+  if (!window.L || !host) return null;
+  let m = maps[id];
+  if (opts.fresh) {
+    // Mapa nuevo dentro del propio hueco (ya está en la página y tiene tamaño)
+    if (m) { try { m.map.remove(); } catch (e) {} }
+    host.style.height = host.style.height || '220px';
+    const map = L.map(host, { zoomControl: false, attributionControl: true, scrollWheelZoom: false, boxZoom: false, keyboard: false });
+    L.tileLayer(TILE, { attribution: '© OpenStreetMap', maxZoom: 19, }).addTo(map);
+    m = maps[id] = { el: host, map, layer: L.layerGroup().addTo(map), fit: null };
+    const refit = () => { map.invalidateSize(); if (m.fit) m.fit(); };
+    requestAnimationFrame(refit); setTimeout(refit, 300); setTimeout(refit, 900);
+    return m;
+  }
+  if (!m) {
+    const el = document.createElement('div');
+    el.className = host.className;
+    const map = L.map(el, { zoomControl: false, attributionControl: !opts.mini, dragging: !opts.mini, scrollWheelZoom: false, doubleClickZoom: !opts.mini, touchZoom: !opts.mini, boxZoom: false, keyboard: false });
+    L.tileLayer(TILE, { attribution: '© OpenStreetMap', maxZoom: 19, }).addTo(map);
+    m = maps[id] = { el, map, layer: L.layerGroup().addTo(map) };
+  }
+  host.replaceWith(m.el);
+  m.map.invalidateSize();
+  m.fit = null;
+  // El mapa se crea fuera de la página y al principio mide 0: se vuelve a encuadrar cuando ya tiene tamaño.
+  const refit = () => { m.map.invalidateSize(); if (m.fit) m.fit(); };
+  requestAnimationFrame(refit); setTimeout(refit, 250); setTimeout(refit, 800);
+  return m;
+}
+const dot = (ll, color, r = 7) => L.circleMarker(ll, { radius: r, color: '#0a0b0d', weight: 3, fillColor: color, fillOpacity: 1 });
+
+// ---------- Vistas ----------
+function viewEstado(c) {
+  const running = c.ignition !== 'off';
+  const t = c.tyres || {};
+  const tyre = (k, label, right) => {
+    const v = t[k], low = tyreLow(c, k), ref = c.tyre_ref && c.tyre_ref[k];
+    return `<div class="col" style="gap:2px;${right ? 'align-items:flex-end;text-align:right' : ''}"><span class="k" style="${low ? 'color:' + C.wa : ''}">${label}</span><span class="m" style="font-size:24px;font-weight:700;${low ? 'color:' + C.wa : ''}">${nf(v, 2)}</span><span style="font-size:11px;color:${low ? C.wa : C.mu}">${low ? 'baja' : 'bar'}${ref ? ' · rec. ' + nf(ref, 2) : ''}</span></div>`;
+  };
+  const open = [...(c.doors_open || []), ...(c.windows_open || [])];
+  const due = maint ? maint.items.filter(i => i.status === 'vencido' || i.status === 'pronto') : [];
+  const loc = c.location;
+  const best = fuel && fuel.stations && fuel.stations[0];
+  const [bTxt, bCol] = running ? (c.battery_v >= 13.5 ? ['Cargando', C.ok] : ['No carga', C.bad]) : c.battery_v == null ? (c.battery_soc == null ? ['Sin dato', C.mu] : c.battery_soc >= 70 ? ['Correcta', C.ok] : c.battery_soc >= 50 ? ['Baja', C.wa] : ['Muy baja', C.bad]) : c.battery_v >= 12.4 ? ['Correcta', C.ok] : c.battery_v >= 12.1 ? ['Baja', C.wa] : ['Muy baja', C.bad];
+  const age = Date.now() - (c.data_ts || c.ts);
+  const stale = c.source === 'ford' && !running && age > 15 * 60e3;
+  return `
+  ${stale ? `<div class="pn pad row" style="gap:10px"><div class="col" style="gap:2px;min-width:0"><span class="k">Último dato del coche</span><span style="font-size:14px">${hm(c.data_ts)} · ${ago(c.data_ts)}. El coche está dormido.</span></div>
+    <button class="btn" id="refreshCar" style="min-height:44px;padding:0 12px;flex:none">Actualizar</button></div>` : ''}
+  ${c.track ? `<button class="pn pad row" data-go="motor" style="width:100%;text-align:left"><span class="k" style="color:${C.ac}">${c.track.circuit ? '🏁 ' + esc(c.track.circuit) : 'Modo circuito activo'}</span><span style="font-size:13px;color:#7d858f">${c.track.auto ? 'automático' : 'hasta las ' + hm(c.track.until)} · sin avisos de presión</span></button>` : ''}
+  ${(c.alerts || []).map(a => `<div class="alert">${esc(a)}${stale ? ` <span style="font-weight:500;opacity:.75">(dato de las ${hm(c.data_ts)})</span>` : ''}</div>`).join('')}
+  <div class="pn" style="padding:16px 18px;display:flex;align-items:center;gap:16px">
+    ${fuelArc(c.fuel_pct)}
+    <div class="col" style="gap:6px">
+      <span class="k">Autonomía</span>
+      <span class="m" style="font-size:52px;font-weight:700;line-height:.9"><span data-count="${c.range_km}">${nf(c.range_km)}</span><span style="font-size:18px;color:#7d858f;margin-left:4px">km</span></span>
+      <span style="font-size:13px;color:#7d858f">${refuels && ((refuels.tank && refuels.tank.l100) || refuels.avg_l100) ? nf((refuels.tank && refuels.tank.l100) || refuels.avg_l100, 1) + ' l/100 km · ' : ''}dato del coche ${ago(c.data_ts || c.ts)}</span>
+    </div>
+  </div>
+  <button class="pn" data-goruedas aria-label="Ver ruedas en detalle" style="padding:14px 16px;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;text-align:left;color:inherit;width:100%;position:relative">
+    <div class="col" style="gap:56px">${tyre('fl', 'Del. izq')}${tyre('rl', 'Tras. izq')}</div>
+    ${carTop(c)}
+    <div class="col" style="gap:56px">${tyre('fr', 'Del. der', true)}${tyre('rr', 'Tras. der', true)}</div>
+    <span style="position:absolute;bottom:8px;left:0;right:0;text-align:center;font-size:11px;color:${C.ac};letter-spacing:.06em">VER DIBUJO Y DESGASTE ›</span>
+  </button>
+  <div class="g3">
+    <div class="pn col" style="padding:12px;gap:6px;border-radius:12px"><span class="k">Odómetro</span><span class="m" style="font-size:20px;font-weight:700">${nf(c.odometer_km)}</span></div>
+    <div class="pn col" style="padding:12px;gap:6px;border-radius:12px"><span class="k">Batería</span><span class="m" style="font-size:20px;font-weight:700">${c.battery_v != null ? nf(c.battery_v, 1) + ' V' : c.battery_soc != null ? nf(c.battery_soc) + ' %' : '—'}</span><span style="font-size:11px;color:${bCol}">${bTxt}${c.battery_soc != null && c.battery_v != null ? ' · ' + nf(c.battery_soc) + ' %' : ''}${battery && battery.status === 'bajando' ? ' · bajando' : ''}</span></div>
+    <div class="pn col" style="padding:12px;gap:6px;border-radius:12px"><span class="k">Puertas</span><span class="m" style="font-size:20px;font-weight:700;color:${c.lock_checking ? C.wa : open.length ? C.bad : C.ok}">${c.lock_checking ? '…' : open.length ? 'ABIERTO' : 'OK'}</span>${c.lock_checking ? `<span style="font-size:11px;color:${C.wa}">Recién aparcado: comprobando</span>` : open.length ? `<span style="font-size:11px;color:${C.bad}">${esc(open.join(', '))}</span>` : ''}</div>
+  </div>
+  ${loc ? `<div class="pn" style="padding:10px;display:flex;align-items:center;gap:12px">
+    <div id="parkMapHost" class="mini"></div>
+    <button id="parkBtn" class="col" style="flex:1;gap:2px;min-width:0;background:none;border:0;text-align:left;padding:0" aria-label="Nota y temporizador de aparcamiento">
+      <span class="k">${running ? 'En marcha' : 'Aparcado'}${!running && parking && parking.timer_at ? ` · <span style="color:${parking.timer_at - Date.now() < 10 * 60e3 ? C.bad : C.ac}">${Math.max(0, Math.round((parking.timer_at - Date.now()) / 60e3))} min</span>` : ''}</span>
+      <span style="font-size:15px;font-weight:600">${running ? 'Posición en directo' : parking ? 'Desde las ' + hm(parking.ts) + (dayLabel(parking.ts) !== 'Hoy' ? ' · ' + esc(dayLabel(parking.ts)) : '') : 'Actualizado ' + ago(c.ts)}</span>
+      <span style="font-size:12px;color:${C.mu}">${!running && parking && parking.note ? esc(parking.note) : running ? '' : 'Toca para añadir nota o temporizador'}</span>
+    </button>
+    <a class="btn" href="https://maps.apple.com/?daddr=${loc.lat},${loc.lon}&dirflg=w" aria-label="Cómo llegar andando al coche">IR</a>
+  </div>` : ''}
+  ${lastTrip ? `<button class="pn pad col" data-lasttrip="${lastTrip.id}" style="gap:4px;text-align:left;color:inherit;width:100%">
+    <div class="row" style="width:100%"><span class="k">Último trayecto · ${esc(dayLabel(lastTrip.start_ts))} ${hm(lastTrip.start_ts)}</span><span style="font-size:12px;color:${C.ac}">Ver ›</span></div>
+    <div class="row" style="width:100%"><span style="font-size:15px;font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${lastTrip.from || lastTrip.to ? esc(lastTrip.from || '…') + ' → ' + esc(lastTrip.to || '…') : hm(lastTrip.start_ts) + ' → ' + hm(lastTrip.end_ts)}</span>
+    <span class="m" style="font-size:14px;font-weight:700;white-space:nowrap">${nf(lastTrip.km, lastTrip.km < 10 ? 1 : 0)} km${lastTrip.fuel_used_l && lastTrip.km >= 5 ? ' · ' + nf(lastTrip.fuel_used_l / lastTrip.km * 100, 1) + ' l/100' : ''}</span></div>
+  </button>` : ''}
+  ${(() => {
+    const f = fuel && fuel.fav && !fuel.fav.missing && fuel.fav.price ? fuel.fav : null;
+    const a = advice && advice.ready ? advice : null;
+    const acol = a ? { llena: C.ok, espera: C.wa, normal: C.mu }[a.verdict] : C.mu;
+    const alab = a ? { llena: 'Buen día para llenar', espera: 'Mejor esperar', normal: 'Precio normal' }[a.verdict] : '';
+    const favBlock = f ? `<div class="row"><div class="col" style="gap:2px;min-width:0"><span class="k" style="color:${C.ac}">★ Tu gasolinera</span><span style="font-size:16px;font-weight:600">${esc(f.name)} ${esc(titleCaseJs(f.town))}</span>${a ? `<span style="font-size:12px;color:${acol};font-weight:600">${alab} · ${a.diff_cts > 0 ? '+' : ''}${nf(a.diff_cts, 1)} cts vs su media</span>` : ''}</div>
+      <span class="m" style="font-size:28px;font-weight:700;color:${C.ac}">${nf(f.price, 3)}<span style="font-size:12px;color:#7d858f"> €/L</span></span></div>` : '';
+    const bestBlock = best && (!f || best.id !== f.id) ? `<div class="row" style="${f ? 'padding-top:8px;border-top:1px solid #1b1e22' : ''}"><div class="col" style="gap:2px;min-width:0"><span class="k">${fuel.type} más barata cerca</span><span style="font-size:15px;font-weight:600">${esc(best.name)}</span><span class="muted">${esc(best.town)} · a ${nf(best.km, 1)} km</span></div>
+      <span class="m" style="font-size:${f ? 20 : 28}px;font-weight:700;color:${f ? C.tx : C.ac}">${nf(best.price, 3)}<span style="font-size:12px;color:#7d858f"> €/L</span></span></div>` : '';
+    return favBlock || bestBlock ? `<button class="pn pad col" data-go="datos" style="gap:8px;text-align:left;color:inherit;width:100%">${favBlock}${bestBlock}</button>`
+      : fuelErr ? `<div class="pn pad"><span class="k">Gasolineras</span><p class="muted" style="margin-top:6px">${esc(fuelErr)}</p></div>` : '';
+  })()}
+  ${due.length ? `<button class="pn pad col" data-go="taller" style="gap:8px;text-align:left">
+    <span class="k">Taller</span>
+    ${due.map(i => `<span class="row" style="width:100%"><span style="font-weight:600">${esc(i.name)}</span><span class="tag" style="color:${i.status === 'vencido' ? C.bad : C.wa};border-color:${i.status === 'vencido' ? '#4a1d18' : '#4a3a12'}">${esc(i.summary)}</span></span>`).join('')}
+  </button>` : ''}`;
+}
+
+function viewMotor(c) {
+  const running = c.ignition !== 'off';
+  const useOil = c.oil_c != null;
+  const oil = (useOil ? c.oil_c : c.coolant_c) ?? 0, hot = useOil ? 80 : 85;
+  const warm = !running ? ['Motor apagado: temperaturas de la última lectura.', C.mu]
+    : oil < 60 ? ['Frío: conduce suave, sin pasar de 3.000 rpm.', C.blue]
+    : oil < hot ? ['Casi listo. Aún sin apretar a fondo.', C.wa]
+    : ['A temperatura. Ya puedes apretar.', C.ok];
+  const z = (from, to) => Math.max(0, Math.min(1, (oil - from) / (to - from))) * 100;
+  const tl = c.trip_live;
+  const lastData = c.data_ts ? Math.round((Date.now() - c.data_ts) / 60e3) : null;
+  return `
+  ${running ? `<div class="pn pad col" style="gap:12px">
+    <div class="row"><span class="k" style="color:${C.ac}">● Viaje en curso</span><span style="font-size:12px;color:#7d858f">dato del coche ${lastData != null ? (lastData < 1 ? 'ahora' : 'hace ' + lastData + ' min') : ''}</span></div>
+    <div class="g3" style="gap:8px">
+      <div class="col" style="gap:2px"><span class="k">Tiempo</span><span class="m" style="font-size:24px;font-weight:700">${tl ? clock(tl.mins * 60) : '—'}</span></div>
+      <div class="col" style="gap:2px"><span class="k">Recorrido</span><span class="m" style="font-size:24px;font-weight:700">${tl && tl.km != null ? nf(tl.km) : '—'} <span style="font-size:12px;color:#7d858f">km</span></span></div>
+      <div class="col" style="gap:2px"><span class="k">Media</span><span class="m" style="font-size:24px;font-weight:700">${tl && tl.avg != null ? nf(tl.avg) : '—'} <span style="font-size:12px;color:#7d858f">km/h</span></span></div>
+    </div>
+    <div class="row" style="padding-top:8px;border-top:1px solid #1b1e22"><span style="font-size:13px;color:#7d858f">Última lectura</span><span class="m" style="font-size:15px;font-weight:700">${nf(c.speed_kmh)} km/h · ${nf(c.rpm)} rpm${c.gear ? ' · ' + c.gear + 'ª' : ''}</span></div>
+    ${tl && tl.fuel_l != null ? `<div class="row"><span style="font-size:13px;color:#7d858f">Gasolina gastada</span><span class="m" style="font-size:15px;font-weight:700">${nf(tl.fuel_l, 1)} L${tl.l100 ? ' · ' + nf(tl.l100, 1) + ' l/100' : ''}</span></div>` : ''}
+    <p class="muted" style="margin:0">El coche manda un dato cada 2–5 minutos: no es un marcador en directo, pero sí el resumen del viaje mientras conduces.</p>
+  </div>` : ''}
+  <div class="pn pad col" style="gap:10px">
+    <div class="row" style="align-items:baseline"><span class="k">${useOil ? 'Aceite' : 'Temperatura motor'}</span><span class="m" style="font-size:30px;font-weight:700">${nf(oil)} <span style="font-size:14px;color:#7d858f">°C</span></span></div>
+    <div style="display:grid;grid-template-columns:6fr ${hot - 60}fr ${120 - hot}fr;gap:4px;height:12px">
+      <div style="background:#173049;border-radius:3px;overflow:hidden"><div style="height:100%;width:${z(0, 60)}%;background:${C.blue}"></div></div>
+      <div style="background:#3a3110;border-radius:3px;overflow:hidden"><div style="height:100%;width:${z(60, hot)}%;background:${C.wa}"></div></div>
+      <div style="background:#123526;border-radius:3px;overflow:hidden"><div style="height:100%;width:${z(hot, 120)}%;background:${C.ok}"></div></div>
+    </div>
+    <div class="row m" style="font-size:10px;color:#7d858f"><span>FRÍO</span><span>CALENTANDO · 60°</span><span>LISTO · ${hot}°</span></div>
+    <span style="font-size:13px;color:${warm[1]}">${warm[0]}</span>
+    ${useOil ? '' : '<span style="font-size:12px;color:#7d858f">Tu coche no envía la temperatura del aceite; uso la del refrigerante, que se calienta antes que el aceite.</span>'}
+  </div>
+  <div class="g3">
+    <div class="pn col" style="padding:12px;gap:6px;border-radius:12px"><span class="k">${useOil ? 'Refrig.' : 'Vida aceite'}</span><span class="m" style="font-size:22px;font-weight:700;${useOil && c.coolant_c > 105 ? 'color:' + C.bad : ''}">${useOil ? nf(c.coolant_c) + '°' : nf(c.oil_life_pct) + '%'}</span></div>
+    <div class="pn col" style="padding:12px;gap:6px;border-radius:12px"><span class="k">${c.outside_c != null ? 'Exterior' : 'Freno mano'}</span><span class="m" style="font-size:22px;font-weight:700">${c.outside_c != null ? nf(c.outside_c) + '°' : c.parking_brake == null ? '—' : c.parking_brake ? 'ON' : 'OFF'}</span></div>
+    <div class="pn col" style="padding:12px;gap:6px;border-radius:12px"><span class="k">Batería</span><span class="m" style="font-size:22px;font-weight:700">${c.battery_v != null ? nf(c.battery_v, 1) : c.battery_soc != null ? nf(c.battery_soc) + '%' : '—'}</span><span style="font-size:11px;color:${running ? (c.battery_v >= 13.4 ? C.ok : C.wa) : '#7d858f'}">${running ? (c.battery_v >= 13.4 ? 'Cargando' : 'Carga baja') : 'En reposo'}</span></div>
+  </div>
+  ${engineSections()}
+  ${trackPrepCard()}
+  <div class="pn pad col" style="gap:10px">
+    <div class="row"><span class="k">Modo circuito</span>${c.track ? `<span class="tag" style="color:${C.ac};border-color:#4a4210">${c.track.auto ? esc(c.track.circuit) : 'Activo hasta las ' + hm(c.track.until)}</span>` : ''}</div>
+    <span style="font-size:13px;color:#7d858f">Se activa solo en los circuitos de España y en el Nürburgring (GP, Nordschleife o las dos juntas). Sin avisos de presión, y los trayectos se guardan aparte de tus récords.</span>
+    ${c.track && c.track.auto ? '' : c.track ? '<button class="btn sec" data-track="off">Desactivar</button>'
+      : '<div class="btns"><button class="btn sec" data-track="midnight">Hasta medianoche</button><button class="btn sec" data-track="4">4 horas</button></div>'}
+    ${c.track && c.track.auto ? '' : '<button class="btn sec" id="addCircuit">📍 Estoy en un circuito que no conoce: guardarlo</button>'}
+    ${customCircuits.map(cc => `<div class="row"><span style="font-size:14px">📍 ${esc(cc.name)}</span><button class="btn sec" style="padding:4px 10px;min-height:0" data-delcircuit="${esc(cc.id)}">Quitar</button></div>`).join('')}
+  </div>
+  ${running ? '<button class="btn sec" id="driveBtn">Pantalla grande del viaje</button>' : ''}`;
+}
+
+// ---------- Día de circuito: antes / después + mi lista ----------
+const PREP_ITEMS = ['Casco (y guantes si quieres)', 'Vaciar maletero y quitar objetos sueltos', 'Quitar la alfombrilla del conductor', 'Gancho de remolque puesto o a mano', 'Manómetro y llave dinamométrica', 'Compresor o inflador', 'Agua, comida y gorra', 'DNI, carné y reserva/pago de la tanda', 'Cinta para el número / dorsal si lo piden'];
+function prepChecks() { try { return JSON.parse(localStorage.getItem('fst_prep') || '{}'); } catch (e) { return {}; } }
+function trackPrepCard() {
+  const d = trackPrepData;
+  if (!d) return '';
+  const ic = { ok: ['✓', C.ok], w: ['⚠︎', C.wa], x: ['⛔', C.bad], i: ['•', C.mu] };
+  const list = prepTab === 'despues' ? d.after : d.before;
+  const done = prepChecks();
+  const nDone = PREP_ITEMS.filter((_, i) => done[i]).length;
+  return `<div class="pn pad col" style="gap:12px">
+    <div class="row"><span class="k">🏁 Día de circuito</span>${prepTab === 'antes' ? `<span style="font-size:12px;color:#7d858f">mi lista ${nDone}/${PREP_ITEMS.length}</span>` : ''}</div>
+    <div class="seg-pick" role="group" aria-label="Antes o después"><button type="button" data-prep="antes" class="${prepTab === 'antes' ? 'on' : ''}">Antes de ir</button><button type="button" data-prep="despues" class="${prepTab === 'despues' ? 'on' : ''}">Al volver</button></div>
+    <div class="col" style="gap:10px">${list.map(c => `<div style="display:grid;grid-template-columns:18px 1fr;gap:8px;font-size:13px;line-height:1.4"><span style="color:${ic[c.k][1]};font-weight:700">${ic[c.k][0]}</span><span><b>${esc(c.title)}.</b> ${esc(c.text)}</span></div>`).join('')}</div>
+    ${prepTab === 'antes' ? `<div class="col" style="gap:2px;padding-top:6px;border-top:1px solid #1d2126">
+      <span class="k" style="padding:6px 0">Llevar / hacer</span>
+      ${PREP_ITEMS.map((t, i) => `<label style="display:flex;gap:10px;align-items:center;min-height:40px;font-size:14px;color:${done[i] ? '#7d858f' : 'inherit'};${done[i] ? 'text-decoration:line-through' : ''}"><input type="checkbox" data-prepck="${i}" ${done[i] ? 'checked' : ''} style="width:20px;height:20px;accent-color:${C.ac}">${esc(t)}</label>`).join('')}
+      ${nDone ? '<button class="btn ghost" data-prepreset style="min-height:40px;margin-top:6px">Vaciar la lista</button>' : ''}
+    </div>` : ''}
+  </div>`;
+}
+
+// ---------- Salud y uso del motor (últimos 30 días) ----------
+const GEAR_COL = ['#7d858f', '#4aa3ff', '#2ee59d', '#c9d45a', '#ffd400', '#ffb21e', '#ff4d3d'];
+function hbars(items, total, col) {
+  return items.map(it => { const p = total ? it.n / total * 100 : 0; return `<div style="display:grid;grid-template-columns:92px 1fr 40px;align-items:center;gap:8px;font-size:12px">
+    <span class="m" style="color:#b3bac2">${esc(it.label)}</span><div style="height:12px;border-radius:3px;background:#1d2126;overflow:hidden"><div style="height:100%;width:${p.toFixed(1)}%;background:${typeof col === 'function' ? col(it) : col}"></div></div><span class="m" style="text-align:right;font-weight:700">${Math.round(p)} %</span></div>`; }).join('');
+}
+function scatterSvg(e) {
+  const W = 340, H = 220, L0 = 34, B = 22, T = 8, R = 6, xmax = 200, ymax = 6500;
+  const x = v => L0 + v / xmax * (W - L0 - R), y = v => T + (1 - v / ymax) * (H - T - B);
+  let g = '';
+  for (const v of [0, 2000, 4000, 6000]) g += `<line x1="${L0}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="#1d2126"/><text x="${L0 - 5}" y="${y(v) + 4}" text-anchor="end" fill="#7d858f" font-size="10">${v / 1000}k</text>`;
+  for (const v of [0, 50, 100, 150, 200]) g += `<text x="${x(v)}" y="${H - 6}" text-anchor="middle" fill="#7d858f" font-size="10">${v}</text>`;
+  (e.gear_ratios || []).forEach((r, i) => {
+    const vEnd = Math.min(xmax, r * ymax / 1000);
+    g += `<line x1="${x(0)}" y1="${y(0)}" x2="${x(vEnd)}" y2="${y(vEnd / r * 1000)}" stroke="${GEAR_COL[i + 1]}" stroke-width="1" opacity=".45" stroke-dasharray="3 4"/>`;
+    const lx = Math.min(xmax - 8, r * 6.1), ly = lx / r * 1000;
+    g += `<text x="${x(lx)}" y="${y(ly) - 4}" fill="${GEAR_COL[i + 1]}" font-size="10" font-weight="700">${i + 1}ª</text>`;
+  });
+  for (const [s, r, gr] of e.scatter) g += `<circle cx="${x(s).toFixed(1)}" cy="${y(r).toFixed(1)}" r="2.6" fill="${GEAR_COL[gr] || GEAR_COL[0]}" opacity=".85"/>`;
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Velocidad frente a revoluciones, con las líneas de cada marcha">${g}<text x="${W - R}" y="${H - 6 - 12}" text-anchor="end" fill="#7d858f" font-size="9">km/h</text></svg>`;
+}
+function warmSvg(list) {
+  if (!list.length) return '<p class="muted">Aún no hay trayectos.</p>';
+  const W = 340, H = 120, L0 = 26, B = 18, T = 6, n = list.length, bw = (W - L0) / n, max = Math.max(15, ...list.map(w => w.min || 0));
+  const y = v => T + (1 - v / max) * (H - T - B);
+  let g = [0, Math.round(max / 2), max].map(v => `<line x1="${L0}" x2="${W}" y1="${y(v)}" y2="${y(v)}" stroke="#1d2126"/><text x="${L0 - 4}" y="${y(v) + 4}" text-anchor="end" fill="#7d858f" font-size="10">${v}</text>`).join('');
+  list.forEach((w, i) => {
+    const cx = L0 + i * bw + bw / 2;
+    if (w.reached && w.min != null) g += `<rect x="${(cx - bw * .3).toFixed(1)}" y="${y(w.min).toFixed(1)}" width="${(bw * .6).toFixed(1)}" height="${(H - B - y(w.min)).toFixed(1)}" rx="2" fill="${w.min <= 8 ? C.ok : w.min <= 14 ? C.wa : C.bad}"/>`;
+    else g += `<text x="${cx}" y="${H - B - 4}" text-anchor="middle" fill="${C.blue}" font-size="11" font-weight="700">✕</text>`;
+  });
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Minutos hasta coger temperatura en cada trayecto">${g}<text x="${W}" y="${H - 4}" text-anchor="end" fill="#7d858f" font-size="9">min hasta temperatura · ✕ no llegó</text></svg>`;
+}
+function engineSections() {
+  const e = engine;
+  if (!e) return '<div class="pn pad"><p class="muted">Cargando salud del motor…</p></div>';
+  if (!e.trips) return '<div class="pn pad"><p class="muted">Aún no hay trayectos en los últimos 30 días para analizar el motor.</p></div>';
+  const sc = e.score, scol = sc >= 85 ? C.ok : sc >= 65 ? C.wa : C.bad;
+  const ic = { ok: ['✓', C.ok], w: ['⚠︎', C.wa], x: ['⛔', C.bad] };
+  const totR = e.rpm_bands.reduce((a, b) => a + b.n, 0), totG = e.gears.reduce((a, b) => a + b.n, 0);
+  const r = e.records;
+  const rec = (k, v, u, col) => `<div class="pn col" style="padding:12px;gap:4px;border-radius:12px"><span class="k">${k}</span><span class="m" style="font-size:20px;font-weight:700;${col ? 'color:' + col : ''}">${v}<span style="font-size:11px;color:#7d858f;font-weight:500"> ${u}</span></span></div>`;
+  return `
+  <div class="pn pad col" style="gap:12px">
+    <div class="row"><span class="k">Cuidado del motor · 30 días</span><span style="font-size:12px;color:#7d858f">${e.trips} trayectos</span></div>
+    <div style="display:grid;grid-template-columns:auto 1fr;gap:14px;align-items:center">
+      <div style="width:84px;height:84px;border-radius:50%;background:conic-gradient(${scol} ${sc * 3.6}deg,#1d2126 0);display:grid;place-items:center"><div style="width:68px;height:68px;border-radius:50%;background:var(--pn,#111316);display:grid;place-items:center"><span class="m" style="font-size:26px;font-weight:700;color:${scol}">${sc}</span></div></div>
+      <div class="col" style="gap:7px">${e.tips.map(t => `<div style="display:grid;grid-template-columns:16px 1fr;gap:6px;font-size:13px;line-height:1.35"><span style="color:${ic[t.k][1]};font-weight:700">${ic[t.k][0]}</span><span>${esc(t.t)}</span></div>`).join('')}</div>
+    </div>
+  </div>
+  <div class="pn pad col" style="gap:8px">
+    <span class="k">Tiempo en cada franja de vueltas</span>
+    ${hbars(e.rpm_bands, totR, it => ({ 'Ralentí': C.mu, '1.100–2.000': C.blue, '2.000–2.500': '#2ee59d', '2.500–3.000': '#c9d45a', '3.000–4.000': C.ac, '4.000–5.000': C.wa, '+5.000': C.bad })[it.label] || C.ac)}
+    <span class="k" style="padding-top:8px">Marcha que llevas</span>
+    ${totG ? hbars(e.gears.map(g => ({ label: g.gear + 'ª', n: g.n, gear: g.gear })), totG, it => GEAR_COL[it.gear]) : '<p class="muted">Aún sin datos de marchas.</p>'}
+    <span class="muted" style="font-size:11px">Sobre ${nf(e.samples)} lecturas en marcha (el coche manda una cada ~2 min). La marcha se calcula con la velocidad y las vueltas.</span>
+  </div>
+  <div class="pn pad col" style="gap:6px">
+    <span class="k">Velocidad y vueltas · con las marchas</span>
+    ${scatterSvg(e)}
+    <span class="muted" style="font-size:11px">Cada punto es una lectura. Las líneas son tus 6 marchas (calibradas con tu coche). Los puntos fuera de las líneas son embrague pisado o cambiando.</span>
+  </div>
+  <div class="pn pad col" style="gap:6px">
+    <span class="k">Calentamiento por trayecto</span>
+    ${warmSvg(e.warm)}
+    ${e.max_temp_trips.some(t => t.t >= 108) ? `<span style="font-size:12px;color:${C.bad}">⛔ Algún trayecto pasó de 108 °C.</span>` : `<span class="muted" style="font-size:12px">Temperatura máxima en estos trayectos: ${nf(Math.max(...e.max_temp_trips.map(t => t.t)))} °C (normal hasta ~105).</span>`}
+  </div>
+  <div class="pn pad col" style="gap:10px"><div class="row"><span class="k">Batería · mínimo diario parado</span>${trendTag(battery)}</div>
+    ${batteryBars(battery && battery.days)}
+    <p class="muted">Por debajo de 12,2 V (línea roja) la batería sufre. Si baja día a día con el coche parado, revísala antes de que no arranque.</p></div>
+  <div class="pn pad col" style="gap:6px">
+    <div class="row"><span class="k">Alternador · tensión en marcha</span>${e.alt_avg != null ? `<span class="m" style="font-weight:700;color:${e.alt_avg >= 13.5 ? C.ok : C.wa}">${nf(e.alt_avg, 2)} V</span>` : ''}</div>
+    ${e.alternator.length >= 2 ? lineChart(e.alternator, 'v', { min: 12.5, max: 15, fmt: v => nf(v, 1), color: C.blue, label: 'Tensión media en marcha por trayecto' }) : '<p class="muted">Hacen falta un par de trayectos más.</p>'}
+    <span class="muted" style="font-size:11px">Normal entre 13,8 y 14,7 V. Si va bajando por debajo de 13,5 V, revisa alternador y batería.</span>
+  </div>
+  <div class="pn pad col" style="gap:6px">
+    <div class="row"><span class="k">Vida del aceite</span>${e.oil.length ? `<span class="m" style="font-weight:700">${nf(e.oil[e.oil.length - 1].pct)} %</span>` : ''}</div>
+    ${e.oil.length >= 2 ? lineChart(e.oil, 'pct', { min: 0, max: 100, fmt: v => nf(v), color: C.ok, label: 'Vida del aceite' }) : ''}
+    <span class="muted" style="font-size:12px">${e.oil_eta ? `Al ritmo actual baja un 1 % cada ${nf(e.oil_rate)} km: cambio en unos ${nf(e.oil_eta.km)} km (≈ ${new Date(e.oil_eta.date).toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}).` : 'La fecha del cambio sale cuando el % baje un par de puntos más.'}</span>
+  </div>
+  <div class="k" style="padding:6px 2px 0">Récords del motor</div>
+  <div class="g3">
+    ${rec('Rpm máx.', r.max_rpm != null ? nf(r.max_rpm) : '—', 'rpm', C.ac)}
+    ${rec('Temp. máx.', r.max_temp != null ? nf(r.max_temp) : '—', '°C')}
+    ${rec('+4.000 rpm', nf(r.over4000_min), 'min')}
+    ${rec('Crucero 120', r.cruise_rpm != null ? nf(r.cruise_rpm) : '—', 'rpm')}
+    ${rec('Arranques frío', nf(r.cold_starts_month), 'este mes')}
+    ${rec('Sin calentar', r.short_pct != null ? nf(r.short_pct) : '—', '% tray.', r.short_pct > 25 ? C.wa : null)}
+  </div>`;
+}
+
+function viewViajes() {
+  if (tripDetail) return viewTrip(tripDetail);
+  if (!trips) return '<div class="pn pad"><p class="muted">Cargando trayectos…</p></div>';
+  if (!trips.length) return '<div class="pn pad"><p class="muted">Todavía no hay trayectos. Aparecerán cuando muevas el coche.</p></div>';
+  const wk = trips.filter(t => t.start_ts >= Date.now() - 7 * 86400e3);
+  const km = wk.reduce((s, t) => s + t.km, 0), secs = wk.reduce((s, t) => s + t.duration_s, 0), top = Math.max(0, ...wk.map(t => t.max_speed));
+  const rec = (label, t, val, unit) => t ? `<button class="pn col" data-trip="${t.id}" style="padding:12px 14px;gap:4px;text-align:left"><span class="k">${label}</span><span class="m" style="font-size:24px;font-weight:700;color:${C.ac}">${val} <span style="font-size:12px;color:#7d858f;font-weight:500">${unit}</span></span><span style="font-size:11px;color:#7d858f">${esc(dayLabel(t.start_ts))} · #${pad2(t.id)}</span></button>` : '';
+  // Resumen con selector Semana / Mes
+  const ms = monthSum, pv = (ms && ms.prev) || {};
+  const dd = (x, y, inv) => x == null || !y ? '' : (() => { const q = Math.round((x - y) / y * 100); const good = inv ? q < 0 : q > 0; return ` <span style="font-size:11px;color:${q === 0 ? C.mu : good ? C.ok : C.wa}">${q > 0 ? '+' : ''}${q} %</span>`; })();
+  const isMonth = viajesPeriod === 'mes' && ms;
+  let html = `<div class="pn pad col" style="gap:10px">
+    <div class="seg-pick" role="group" aria-label="Periodo"><button type="button" data-period="semana" class="${!isMonth ? 'on' : ''}">7 días</button><button type="button" data-period="mes" class="${isMonth ? 'on' : ''}">${ms ? esc(ms.label.split(' ')[0][0].toUpperCase() + ms.label.split(' ')[0].slice(1)) : 'Mes'}</button></div>
+    ${isMonth ? `<div class="g3" style="gap:8px">
+        <div class="col" style="gap:2px"><span class="k">Km</span><span class="m" style="font-size:22px;font-weight:700">${nf(ms.km)}${dd(ms.km, pv.km)}</span></div>
+        <div class="col" style="gap:2px"><span class="k">Gasolina</span><span class="m" style="font-size:22px;font-weight:700">${nf(ms.fuel_eur, 0)} €${dd(ms.fuel_eur, pv.fuel_eur, true)}</span></div>
+        <div class="col" style="gap:2px"><span class="k">Consumo</span><span class="m" style="font-size:22px;font-weight:700">${ms.l100 != null ? nf(ms.l100, 1) : '—'}${dd(ms.l100, pv.l100, true)}</span></div>
+      </div>
+      <span class="muted" style="font-size:12px">${ms.trips} trayectos · ${nf(ms.hours, 1)} h al volante${ms.work ? ` · al trabajo ${ms.work.trips} viajes, ${nf(ms.work.eur, 2)} €` : ''}${ms.other_eur ? ` · otros gastos ${nf(ms.other_eur, 2)} €` : ''}. Comparado con ${esc((pv.label || '').split(' ')[0])}. El día 1 te llega el resumen.</span>`
+    : `<div class="g3" style="gap:8px">
+        <div class="col" style="gap:2px"><span class="k">Km</span><span class="m" style="font-size:22px;font-weight:700">${nf(km)}</span></div>
+        <div class="col" style="gap:2px"><span class="k">Al volante</span><span class="m" style="font-size:22px;font-weight:700">${clock(secs)}</span></div>
+        <div class="col" style="gap:2px"><span class="k">Coste</span><span class="m" style="font-size:22px;font-weight:700">${nf(wk.reduce((s, t) => s + (t.cost_eur || 0), 0), 0)} €</span></div>
+      </div><span class="muted" style="font-size:12px">${wk.length} trayectos en los últimos 7 días.</span>`}
+  </div>`;
+  if (records && records.top_speed) html += `<div class="k" style="padding:6px 2px 0">Récords</div><div class="g2">
+    ${rec('Velocidad punta', records.top_speed, nf(records.top_speed?.max_speed), 'km/h')}
+    ${rec('Más eficiente', records.best_eff, nf(records.best_eff?.l100, 1), 'l/100')}
+    ${rec('Más largo', records.longest, nf(records.longest?.km, 1), 'km')}
+    ${rec('Régimen máximo', records.top_rpm, nf(records.top_rpm?.max_rpm), 'rpm')}</div>`;
+  if (circuits && circuits.length) html += `<div class="k" style="padding:6px 2px 0">Circuitos</div>` + circuits.map(ci => `
+    <div class="pn pad col" style="gap:10px">
+      <div class="row"><span style="font-size:16px;font-weight:600">🏁 ${esc(ci.circuit)}</span><span style="font-size:12px;color:#7d858f">${ci.days} día${ci.days > 1 ? 's' : ''} · último ${esc(dayLabel(ci.last_ts))}</span></div>
+      <div class="g3" style="gap:8px">
+        <div class="col" style="gap:2px"><span class="k">Punta</span><span class="m" style="font-size:20px;font-weight:700;color:${C.ac}">${nf(ci.top_speed)}</span></div>
+        <div class="col" style="gap:2px"><span class="k">Rpm máx.</span><span class="m" style="font-size:20px;font-weight:700">${nf(ci.top_rpm)}</span></div>
+        <div class="col" style="gap:2px"><span class="k">En pista</span><span class="m" style="font-size:20px;font-weight:700">${nf(ci.km)} km</span></div>
+      </div></div>`).join('');
+  if (commute && commute.length) html += commute.slice(0, 2).map(c => `<div class="pn pad col" style="gap:10px">
+    <div class="row"><span class="k">${esc(c.route)}</span><span style="font-size:12px;color:#7d858f">${c.count} trayecto${c.count > 1 ? 's' : ''}</span></div>
+    <div class="g3" style="gap:8px">
+      <div class="col" style="gap:2px"><span class="k">Media</span><span class="m" style="font-size:20px;font-weight:700">${nf(c.avg_min)} <span style="font-size:12px;color:#7d858f">min</span></span></div>
+      <div class="col" style="gap:2px"><span class="k">Mejor</span><span class="m" style="font-size:20px;font-weight:700;color:${C.ac}">${nf(c.best_min)} <span style="font-size:12px;color:#7d858f">min</span></span></div>
+      <div class="col" style="gap:2px"><span class="k">Coste</span><span class="m" style="font-size:20px;font-weight:700">${c.avg_cost != null ? nf(c.avg_cost, 2) : '—'} <span style="font-size:12px;color:#7d858f">€</span></span></div>
+    </div></div>`).join('');
+  if (trackdays && trackdays.length) html += `<div class="k" style="padding:6px 2px 0">Días de circuito</div>` + trackdays.map((d, i) => `
+    <div class="pn pad col" style="gap:10px">
+      <div class="row"><span style="font-size:15px;font-weight:600">${esc(d.circuit)}</span><span style="font-size:12px;color:#7d858f">${new Date(d.day).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' })}</span></div>
+      <div class="g3" style="gap:8px">
+        <div class="col" style="gap:2px"><span class="k">En pista</span><span class="m" style="font-size:18px;font-weight:700">${nf(d.km, 1)} km</span></div>
+        <div class="col" style="gap:2px"><span class="k">Punta</span><span class="m" style="font-size:18px;font-weight:700;color:${C.ac}">${nf(d.top_speed)}</span></div>
+        <div class="col" style="gap:2px"><span class="k">Motor máx.</span><span class="m" style="font-size:18px;font-weight:700">${d.top_temp ? nf(d.top_temp) + '°' : '—'}</span></div>
+        <div class="col" style="gap:2px"><span class="k">Tandas</span><span class="m" style="font-size:18px;font-weight:700">${d.sessions}</span></div>
+        <div class="col" style="gap:2px"><span class="k">Gasolina</span><span class="m" style="font-size:18px;font-weight:700">${d.fuel_l != null ? nf(d.fuel_l, 1) + ' L' : '—'}</span></div>
+        <div class="col" style="gap:2px"><span class="k">Coste</span><span class="m" style="font-size:18px;font-weight:700">${d.cost_eur != null ? nf(d.cost_eur, 2) + ' €' : '—'}</span></div>
+      </div>
+      ${d.note ? `<p style="margin:0;font-size:14px;white-space:pre-wrap;color:#c9ced4">${esc(d.note)}</p>` : ''}
+      <button class="btn sec" data-tracknote="${i}">${d.note ? 'Editar notas' : 'Añadir notas (presiones, reglajes…)'}</button>
+    </div>`).join('');
+  // Lista: filtros y solo las 2 últimas semanas salvo que pidas más
+  const isWork = t => /trabajo|oficina/i.test((t.from || '') + ' ' + (t.to || ''));
+  const kind = t => t.track ? 'circuito' : isWork(t) ? 'trabajo' : 'otros';
+  const counts = { todos: trips.length, trabajo: 0, circuito: 0, otros: 0 };
+  trips.forEach(t => counts[kind(t)]++);
+  const filtered = trips.filter(t => tripFilter === 'todos' || kind(t) === tripFilter);
+  const cut = Date.now() - 14 * 86400e3;
+  const shown = tripsAll ? filtered : filtered.filter((t, i) => t.start_ts >= cut || i < 5);
+  html += `<div class="row" style="gap:6px;padding:6px 0 0;flex-wrap:wrap;justify-content:flex-start">${[['todos', 'Todos'], ['trabajo', 'Trabajo'], ['circuito', 'Circuito'], ['otros', 'Otros']].filter(([k]) => k === 'todos' || counts[k])
+    .map(([k, l]) => `<button class="tag" data-tfilter="${k}" style="min-height:34px;padding:0 12px;font-size:12px;${tripFilter === k ? `color:#0a0b0d;background:${C.ac};border-color:${C.ac}` : 'color:#c9ced4;background:none'}">${l} · ${counts[k]}</button>`).join('')}</div>`;
+  let day = null, group = '';
+  const flush = () => { if (day) html += `<div class="pn" style="padding:4px 16px"><div class="k" style="padding:12px 0 4px">${esc(day)}</div>${group}</div>`; };
+  for (const t of shown) {
+    const d = dayLabel(t.start_ts);
+    if (d !== day) { flush(); day = d; group = ''; }
+    group += `<button class="li" data-trip="${t.id}" style="grid-template-columns:34px 1fr 92px">
+      <span class="m" style="font-size:13px;color:#7d858f;font-weight:600">#${pad2(t.id)}</span>
+      <span class="col" style="gap:2px"><span class="m" style="font-size:16px;font-weight:600">${t.from || t.to ? `${esc(t.from || '…')} → ${esc(t.to || '…')} <span style="font-size:12px;color:#7d858f;font-weight:500">${hm(t.start_ts)}</span>` : `${hm(t.start_ts)} → ${hm(t.end_ts)}`}${t.track ? ` <span class="tag" style="color:${C.ac};border-color:#4a4210;font-size:10px">${t.circuit ? '🏁 ' + esc(t.circuit.replace('Circuito de ', '')) : 'Circuito'}</span>` : ''}</span><span style="font-size:12px;color:#7d858f">Media ${nf(t.avg_speed)}${t.max_speed != null ? ' · máx. ' + nf(t.max_speed) : ''}${t.cost_eur != null ? ' · ' + nf(t.cost_eur, 2) + ' €' : ''}</span></span>
+      <span class="col" style="gap:4px;align-items:flex-end"><span class="m" style="font-size:18px;font-weight:700">${nf(t.km, 1)} km</span>${spark(t.spark)}</span>
+    </button>`;
+  }
+  flush();
+  if (!shown.length) html += '<div class="pn pad"><p class="muted">No hay trayectos de este tipo.</p></div>';
+  if (shown.length < filtered.length) html += `<button class="btn sec" data-tmore>Ver más (${filtered.length - shown.length})</button>`;
+  return html;
+}
+
+function viewTrip(t) {
+  const l100 = t.km > 1 && t.fuel_used_l ? t.fuel_used_l / t.km * 100 : null;
+  const pts = (t.points || []).map(p => ({ ts: p[3], s: p[2] }));
+  const trow = (label, val, unit = '', hi) => `<div class="row" style="padding:10px 0;border-top:1px solid #1b1e22;align-items:baseline"><span class="k">${label}</span><span class="m" style="font-size:20px;font-weight:700;${hi ? 'color:' + C.ac : ''}">${val} <span style="font-size:12px;color:#7d858f;font-weight:500">${unit}</span></span></div>`;
+  let cmp = '';
+  if (t.route) {
+    const diff = t.duration_s - t.route.avg_duration_s, same = Math.abs(diff) < 30, faster = diff < 0;
+    cmp = `<div class="pn pad col" style="gap:8px">
+      <span class="k">Este recorrido · ${t.route.count + 1} veces</span>
+      <div class="row" style="align-items:baseline"><span style="font-size:15px">${same ? 'En tu media de siempre' : faster ? 'Más rápido que tu media' : 'Más lento que tu media'}</span>
+        <span class="m" style="font-size:24px;font-weight:700;color:${same ? C.tx : faster ? C.ok : C.wa}">${same ? '=' : (faster ? '−' : '+') + clock(Math.abs(diff))}</span></div>
+      <div class="g3" style="gap:8px">
+        <div class="col" style="gap:2px"><span class="k">Media</span><span class="m" style="font-size:16px;font-weight:600">${clock(t.route.avg_duration_s)}</span></div>
+        <div class="col" style="gap:2px"><span class="k">Mejor</span><span class="m" style="font-size:16px;font-weight:600">${clock(Math.min(t.route.best_duration_s, t.duration_s))}</span></div>
+        <div class="col" style="gap:2px"><span class="k">Coste medio</span><span class="m" style="font-size:16px;font-weight:600">${t.route.avg_cost_eur != null ? nf(t.route.avg_cost_eur, 2) + ' €' : '—'}</span></div>
+      </div></div>`;
+  }
+  const st = t.stats, ser = (t.series || []).filter(p => p.ts);
+  const chart = (title, key, o) => ser.filter(p => p[key] != null).length > 2 ? `<div class="pn pad col" style="gap:8px"><span class="k">${title}</span>${lineChart(ser.filter(p => p[key] != null), key, { dayTicks: false, label: title, ...o })}</div>` : '';
+  const gearTotal = st && st.gears ? Object.values(st.gears).reduce((a, b) => a + b, 0) : 0;
+  const gears = gearTotal ? `<div class="pn pad col" style="gap:10px"><span class="k">Marchas (calculadas por velocidad y rpm)</span>
+    <div style="display:flex;gap:6px;align-items:flex-end;height:70px">${[1, 2, 3, 4, 5, 6].map(g => { const n = st.gears[g] || 0, pc = n / gearTotal; return `<div class="col" style="flex:1;align-items:center;gap:4px"><div style="width:100%;height:${Math.max(3, pc * 54)}px;background:${g === 6 ? C.ac : '#3a4048'};border-radius:4px"></div><span class="m" style="font-size:12px;color:#7d858f">${g}ª</span></div>`; }).join('')}</div></div>` : '';
+  const tyre = st && st.tyre_rise && (st.tyre_rise.front || st.tyre_rise.rear) ? `<div class="pn pad col" style="gap:8px"><span class="k">Presiones al calentarse</span>
+    <div class="row"><span>Delante</span><span class="m" style="font-weight:700">${nf(st.tyre_rise.from[0], 2)} → ${nf(st.tyre_rise.to[0], 2)} <span style="color:${C.ac}">(${st.tyre_rise.front >= 0 ? '+' : ''}${nf(st.tyre_rise.front, 2)})</span></span></div>
+    <div class="row"><span>Detrás</span><span class="m" style="font-weight:700">${nf(st.tyre_rise.from[1], 2)} → ${nf(st.tyre_rise.to[1], 2)} <span style="color:${C.ac}">(${st.tyre_rise.rear >= 0 ? '+' : ''}${nf(st.tyre_rise.rear, 2)})</span></span></div></div>` : '';
+  return `
+  ${t.circuit ? `<div class="pn pad row"><span class="k" style="color:${C.ac}">🏁 ${esc(t.circuit)}</span><span style="font-size:12px;color:#7d858f">Sesión en circuito</span></div>` : ''}
+  <div class="pn" style="overflow:hidden;position:relative"><div id="tripMapHost" class="map"></div>
+    <div class="m" style="position:absolute;left:10px;bottom:22px;z-index:500;display:flex;gap:10px;background:rgba(10,11,13,.85);border-radius:8px;padding:6px 10px;font-size:11px">
+      ${t.max_speed == null || (t.path && t.path.sparse) ? `<span style="color:${C.ok}">● Salida</span><span style="color:#f4f5f6">● Llegada</span>${t.path ? `<span style="color:${C.ac}">┅ Ruta estimada</span>` : ''}` : `<span style="color:${C.ac}">● &lt;70</span><span style="color:${C.wa}">● 70–95</span><span style="color:${C.bad}">● &gt;95 km/h</span>`}</div></div>
+  <div class="g2">${kv('Distancia', nf(t.km, 1), 'km')}${kv('Tiempo', clock(t.duration_s))}</div>
+  ${t.same ? sameCard(t) : cmp}
+  <div class="pn" style="padding:4px 16px">
+    ${trow('Velocidad media', nf(t.avg_speed), 'km/h')}${trow('Velocidad punta', t.max_speed_low ? '—' : nf(t.max_speed), 'km/h', true)}
+    ${trow('Régimen máximo', nf(t.max_rpm), 'rpm')}${st && st.cruise_rpm ? trow('Rpm a 110–125 km/h', nf(st.cruise_rpm), 'rpm') : ''}
+    ${trow('Motor máximo', nf(t.max_oil), '°C')}${st && st.warm_min != null ? trow('A temperatura en', nf(st.warm_min), 'min') : ''}
+    ${t.circuit || t.rpm_high_pct ? trow('Sobre 4.000 rpm', nf(t.rpm_high_pct), '%') : ''}
+    ${st && st.highway_pct != null ? trow('Autovía · ciudad', nf(st.highway_pct) + ' · ' + nf(st.city_pct), '%') : ''}
+    ${trow('Gasolina gastada', t.fuel_used_l != null ? nf(t.fuel_used_l, 1) : '—', 'L')}${trow('Consumo', l100 ? (t.km < 15 ? '≈' : '') + nf(l100, 1) : '—', 'l/100')}
+    ${st && st.alternator_v ? trow('Batería en marcha', nf(st.alternator_v, 2), 'V') : ''}
+    ${trow('Coste del trayecto', t.cost_eur != null ? nf(t.cost_eur, 2) : '—', '€', true)}
+  </div>
+  ${t.price_l ? `<p class="muted" style="padding:0 4px">Coste calculado con ${nf(t.price_l, 3)} €/L (tu último repostaje con precio, o la media de gasolineras cercanas).</p>` : ''}
+  ${t.km < 15 && t.fuel_used_l ? `<p class="muted" style="padding:0 4px">En trayectos cortos el consumo es aproximado: el indicador de gasolina va a saltos de ~0,2 L. El dato fiable es el del depósito entero (en Datos).</p>` : ''}
+  ${t.path && t.path.sparse && t.max_speed != null ? `<p class="muted" style="padding:0 4px">El coche mandó pocas lecturas en este trayecto (${t.points.length}), así que el mapa dibuja la ruta más probable por carretera y la velocidad punta no es fiable.</p>` : ''}
+  ${t.max_speed == null ? `<p class="muted" style="padding:0 4px">El coche no mandó datos durante este trayecto, solo al arrancar y al apagar: ${t.path ? 'el mapa dibuja la ruta más probable por carretera' : 'el mapa une la salida y la llegada en línea recta'} y no hay velocidad ni rpm.</p>` : `<div class="pn pad col" style="gap:8px"><span class="k">Velocidad</span>${lineChart(pts, 's', { min: 0, max: Math.max(60, Math.ceil(t.max_speed / 20) * 20), fmt: v => nf(v), color: C.ac, dayTicks: false, label: 'Velocidad durante el trayecto' })}</div>
+  ${chart('Revoluciones', 'rpm', { min: 0, max: Math.max(3000, Math.ceil((t.max_rpm || 0) / 1000) * 1000), fmt: v => nf(v), color: C.blue })}
+  ${gears}
+  ${chart('Temperatura del motor', 'temp', { min: 0, max: 120, fmt: v => nf(v) + '°', color: C.wa })}
+  ${chart('Depósito', 'fuel', { min: 0, max: 100, fmt: v => nf(v) + '%', color: C.ok })}
+  ${tyre}`}
+  ${st && st.cold_revs ? `<div class="pn pad" style="border-color:${C.blue}55"><span style="font-size:14px;color:#c9ced4">❄️ Llegaste a <b>${nf(st.cold_revs.rpm)} rpm</b> con el motor a ${nf(st.cold_revs.temp)}°. Hasta los 70–80° mejor no pasar de 3.000.</span></div>` : ''}
+  <div class="btns"><button class="btn sec" id="imgBtn">Compartir imagen</button><button class="btn sec" id="gpxBtn">Exportar GPX</button></div>`;
+}
+
+// ---------- Exportar trayecto ----------
+async function shareBlob(blob, name, title) {
+  const file = new File([blob], name, { type: blob.type });
+  if (navigator.canShare && navigator.canShare({ files: [file] })) { try { await navigator.share({ files: [file], title }); return; } catch (e) { if (e.name === 'AbortError') return; } }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+}
+
+function exportGpx(t) {
+  if (!t) return;
+  const pts = (t.points || []);
+  const name = `${t.from || 'Salida'} → ${t.to || 'Llegada'} · ${new Date(t.start_ts).toLocaleDateString('es-ES')}`;
+  const gpx = `<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="Mi Garaje" xmlns="http://www.topografix.com/GPX/1/1">
+<trk><name>${name.replace(/[<&>]/g, '')}</name><trkseg>
+${pts.map(p => `<trkpt lat="${p[0]}" lon="${p[1]}">${p[3] ? `<time>${new Date(p[3]).toISOString()}</time>` : ''}${p[2] != null ? `<extensions><speed>${(p[2] / 3.6).toFixed(2)}</speed></extensions>` : ''}</trkpt>`).join('\n')}
+</trkseg></trk></gpx>`;
+  shareBlob(new Blob([gpx], { type: 'application/gpx+xml' }), `trayecto-${t.id}.gpx`, name);
+}
+
+// Imagen para compartir: mapa oscuro de OpenStreetMap con la ruta por carretera, título que cabe y datos
+async function shareTripImage(t) {
+  if (!t) return;
+  flash('Preparando la imagen…');
+  const W = 1080, H = 1350, cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+  const g = cv.getContext('2d');
+  g.fillStyle = '#0a0b0d'; g.fillRect(0, 0, W, H);
+  const pts = (t.points || []).filter(p => p[0] != null);
+  const legs = t.path && t.path.legs ? t.path.legs : null;
+  // Segmentos a dibujar: por carretera si la hay; si no, entre lecturas
+  const segs = legs ? legs.map(l => ({ c: l.c, s: l.s, dash: t.path.sparse })) : pts.slice(1).map((p, i) => ({ c: [[pts[i][0], pts[i][1]], [p[0], p[1]]], s: p[2] }));
+  const all = segs.flatMap(s => s.c);
+  const box = { x: 60, y: 300, w: W - 120, h: 640 };
+  const col = v => v == null || t.max_speed == null ? '#ffd400' : v > 95 ? '#ff4d3d' : v >= 70 ? '#ffb21e' : '#ffd400';
+  // Proyección Mercator: el zoom más grande en el que cabe la ruta con margen
+  const mx = (lon, z) => (lon + 180) / 360 * 256 * 2 ** z;
+  const my = (lat, z) => { const r = lat * Math.PI / 180; return (1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2 * 256 * 2 ** z; };
+  g.save(); g.beginPath(); g.roundRect ? g.roundRect(box.x, box.y, box.w, box.h, 28) : g.rect(box.x, box.y, box.w, box.h); g.clip();
+  g.fillStyle = '#121418'; g.fillRect(box.x, box.y, box.w, box.h);
+  if (all.length > 1) {
+    const la = all.map(p => p[0]), lo = all.map(p => p[1]);
+    const [minLa, maxLa, minLo, maxLo] = [Math.min(...la), Math.max(...la), Math.min(...lo), Math.max(...lo)];
+    let z = 17;
+    while (z > 3 && (mx(maxLo, z) - mx(minLo, z) > box.w - 160 || my(minLa, z) - my(maxLa, z) > box.h - 160)) z--;
+    const cx = (mx(minLo, z) + mx(maxLo, z)) / 2, cy = (my(minLa, z) + my(maxLa, z)) / 2;
+    const ox = box.x + box.w / 2 - cx, oy = box.y + box.h / 2 - cy;
+    const P = p => [mx(p[1], z) + ox, my(p[0], z) + oy];
+    // Teselas de OpenStreetMap (si no cargan, queda el fondo liso)
+    try {
+      const tx0 = Math.floor((cx - box.w / 2) / 256), tx1 = Math.floor((cx + box.w / 2) / 256), ty0 = Math.floor((cy - box.h / 2) / 256), ty1 = Math.floor((cy + box.h / 2) / 256);
+      const off = document.createElement('canvas'); off.width = box.w; off.height = box.h;
+      const og = off.getContext('2d');
+      const jobs = [];
+      for (let x = tx0; x <= tx1; x++) for (let y = ty0; y <= ty1; y++) jobs.push(new Promise(ok => {
+        const im = new Image(); im.crossOrigin = 'anonymous';
+        im.onload = () => { og.drawImage(im, x * 256 - (cx - box.w / 2), y * 256 - (cy - box.h / 2)); ok(true); };
+        im.onerror = () => ok(false);
+        im.src = `https://tile.openstreetmap.org/${z}/${x}/${y}.png`;
+      }));
+      const res = await Promise.race([Promise.all(jobs), new Promise(r => setTimeout(() => r(null), 8000))]);
+      if (res && res.some(Boolean)) {
+        // Modo oscuro como en la app: invertir, girar el tono y bajar el brillo
+        const id = og.getImageData(0, 0, box.w, box.h), d = id.data;
+        for (let i = 0; i < d.length; i += 4) {
+          const r = 255 - d[i], gg = 255 - d[i + 1], b = 255 - d[i + 2];
+          // rotación de tono 180° aproximada (intercambia azules/naranjas) y apagado
+          const l = (r + gg + b) / 3;
+          d[i] = (l * .55 + (255 - r) * .08) * .62; d[i + 1] = (l * .55 + (255 - gg) * .08) * .64; d[i + 2] = (l * .55 + (255 - b) * .08) * .70;
+        }
+        og.putImageData(id, 0, 0);
+        g.drawImage(off, box.x, box.y);
+      }
+    } catch (e) { /* sin mapa de fondo */ }
+    // Ruta: primero un borde oscuro y luego el color de cada tramo
+    g.lineCap = 'round'; g.lineJoin = 'round';
+    for (const pass of [0, 1]) for (const sg of segs) {
+      g.beginPath(); sg.c.forEach((p, i) => { const [x, y] = P(p); i ? g.lineTo(x, y) : g.moveTo(x, y); });
+      g.setLineDash(pass && sg.dash ? [4, 22] : []);
+      g.strokeStyle = pass ? col(sg.s) : 'rgba(0,0,0,.65)'; g.lineWidth = pass ? 11 : 19; g.stroke();
+    }
+    g.setLineDash([]);
+    const dot = (p, c) => { const [x, y] = P(p); g.fillStyle = c; g.beginPath(); g.arc(x, y, 17, 0, 7); g.fill(); g.strokeStyle = '#0a0b0d'; g.lineWidth = 6; g.stroke(); };
+    dot(all[0], '#2ee59d'); dot(all[all.length - 1], '#f4f5f6');
+  }
+  g.restore();
+  g.strokeStyle = '#23272d'; g.lineWidth = 2; g.beginPath(); g.roundRect ? g.roundRect(box.x, box.y, box.w, box.h, 28) : g.rect(box.x, box.y, box.w, box.h); g.stroke();
+  g.fillStyle = 'rgba(10,11,13,.7)'; g.fillRect(box.x + box.w - 230, box.y + box.h - 34, 214, 24);
+  g.fillStyle = '#9aa1a9'; g.font = '500 18px "Inter Tight", sans-serif'; g.textAlign = 'right'; g.fillText('© OpenStreetMap', box.x + box.w - 22, box.y + box.h - 16); g.textAlign = 'left';
+  // Textos: el título se reduce hasta caber y, si hace falta, va en dos líneas
+  const model = carCfg && carCfg.model ? carCfg.model.split('·')[0].trim() : 'Fiesta ST';
+  g.fillStyle = '#ffd400'; g.font = '700 32px "Chakra Petch", monospace'; g.fillText(model.toUpperCase(), 60, 96);
+  const from = (t.from || '').toUpperCase(), to = (t.to || '').toUpperCase();
+  const maxW = W - 120;
+  const fit = (txt, start, min) => { let fs = start; do { g.font = `700 ${fs}px "Chakra Petch", monospace`; if (g.measureText(txt).width <= maxW) return fs; fs -= 2; } while (fs > min); return fs; };
+  g.fillStyle = '#f4f5f6';
+  if (from || to) {
+    const one = `${from || '…'} → ${to || '…'}`;
+    const fs1 = fit(one, 66, 46);
+    if (g.measureText(one).width <= maxW) { g.font = `700 ${fs1}px "Chakra Petch", monospace`; g.fillText(one, 60, 186); }
+    else {
+      const l1 = from || '…', l2 = '→ ' + (to || '…');
+      const fs = Math.min(fit(l1, 58, 30), fit(l2, 58, 30));
+      g.font = `700 ${fs}px "Chakra Petch", monospace`; g.fillText(l1, 60, 158); g.fillText(l2, 60, 158 + fs + 6);
+    }
+  } else { g.font = '700 66px "Chakra Petch", monospace'; g.fillText(`TRAYECTO #${t.id}`, 60, 186); }
+  g.fillStyle = '#7d858f'; g.font = '500 30px "Inter Tight", sans-serif';
+  g.fillText(new Date(t.start_ts).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' }) + ` · ${hm(t.start_ts)} → ${hm(t.end_ts)}`, 60, 270);
+  const l100 = t.km > 1 && t.fuel_used_l ? t.fuel_used_l / t.km * 100 : null;
+  const stats = [['DISTANCIA', nf(t.km, 1) + ' km'], ['TIEMPO', t.duration_s < 3600 ? Math.round(t.duration_s / 60) + ' min' : Math.floor(t.duration_s / 3600) + ' h ' + String(Math.round(t.duration_s % 3600 / 60)).padStart(2, '0')], ['MEDIA', nf(t.avg_speed) + ' km/h'],
+    ['PUNTA', t.max_speed != null && !t.max_speed_low ? nf(t.max_speed) + ' km/h' : '—'], ['CONSUMO', l100 ? (t.km < 15 ? '≈' : '') + nf(l100, 1) + ' l/100' : '—'], ['COSTE', t.cost_eur != null ? nf(t.cost_eur, 2) + ' €' : '—']];
+  stats.forEach(([k, v], i) => {
+    const x = 60 + (i % 3) * 330, y = 1020 + Math.floor(i / 3) * 140;
+    g.fillStyle = '#7d858f'; g.font = '600 24px "Chakra Petch", monospace'; g.fillText(k, x, y);
+    g.fillStyle = i === 3 ? '#ffd400' : '#f4f5f6'; g.font = '700 50px "Chakra Petch", monospace'; g.fillText(v, x, y + 60);
+  });
+  if (t.circuit) { g.fillStyle = '#ffd400'; g.font = '700 30px "Chakra Petch", monospace'; g.fillText('🏁 ' + t.circuit, 60, 1300); }
+  let blob;
+  try { blob = await new Promise((ok, ko) => cv.toBlob(b => b ? ok(b) : ko(), 'image/png')); }
+  catch (e) { flash('No se ha podido crear la imagen'); return; }
+  // iOS solo deja compartir justo después de un toque: se enseña la imagen con su botón
+  sheet = { type: 'shareimg', blob, name: `trayecto-${t.id}.png`, url: URL.createObjectURL(blob) }; render();
+}
+
+function adviceBox() {
+  const a = advice;
+  if (!a) return '';
+  if (!a.ready) return `<p class="muted">Cargando el histórico de precios de los últimos 3 meses para decirte cuándo conviene llenar (${a.days || 0} de 90 días)…</p>`;
+  const col = { llena: C.ok, espera: C.wa, normal: C.mu }[a.verdict];
+  const lab = { llena: 'Buen día para llenar', espera: 'Mejor esperar', normal: 'Precio normal' }[a.verdict];
+  return `<div class="col" style="gap:6px;padding:10px 12px;border-radius:10px;background:#15181c;border-left:3px solid ${col}">
+    <div class="row"><span style="font-weight:700;color:${col}">${lab}</span><span class="m" style="font-size:13px;color:${a.diff_cts <= 0 ? C.ok : C.wa}">${a.diff_cts > 0 ? '+' : ''}${nf(a.diff_cts, 1)} cts vs media</span></div>
+    <span style="font-size:13px">${esc(a.short)}</span>
+    <span class="muted" style="font-size:12px">Media 30 días ${nf(a.mean, 3)} · mín. ${nf(a.min, 3)} · máx. ${nf(a.max, 3)}${a.trend_cts != null ? ` · semana ${a.trend_cts > 0 ? '↑ +' : a.trend_cts < 0 ? '↓ ' : '= '}${nf(a.trend_cts, 1)} cts` : ''}${a.pattern ? ` · más barata los ${a.pattern.best}, más cara los ${a.pattern.worst}` : ''}</span>
+  </div>`;
+}
+
+function sameCard(t) {
+  const c = t.same;
+  if (!c) return '';
+  const mm = s => clock(s);
+  const dcol = c.diff_s <= -30 ? C.ok : c.diff_s >= 60 ? C.wa : C.mu;
+  return `<div class="pn pad col" style="gap:10px">
+    <div class="row"><span class="k">Comparado con ${c.n} trayecto${c.n > 1 ? 's' : ''} igual${c.n > 1 ? 'es' : ''}</span>${c.is_best ? `<span class="tag" style="color:${C.ac};border-color:${C.ac}55">🏆 Tu mejor tiempo</span>` : `<span style="font-size:12px;color:#7d858f">${c.rank}º de ${c.of}</span>`}</div>
+    <div class="g3" style="gap:8px">
+      <div class="col" style="gap:2px"><span class="k">Vs media</span><span class="m" style="font-size:20px;font-weight:700;color:${dcol}">${c.diff_s > 0 ? '+' : c.diff_s < 0 ? '−' : ''}${mm(Math.abs(c.diff_s))}</span></div>
+      <div class="col" style="gap:2px"><span class="k">Media</span><span class="m" style="font-size:20px;font-weight:700">${mm(c.avg_s)}</span></div>
+      ${c.is_best ? `<div class="col" style="gap:2px"><span class="k">Consumo</span><span class="m" style="font-size:20px;font-weight:700">${c.l100 != null ? nf(c.l100, 1) : '—'}</span></div>`
+        : `<button class="col" data-trip="${c.best_id}" style="gap:2px;background:none;border:0;padding:0;text-align:left;color:inherit"><span class="k">Mejor ›</span><span class="m" style="font-size:20px;font-weight:700;color:${C.ac}">${mm(c.best_s)}</span></button>`}
+    </div>
+    ${c.avg_l100 != null && c.l100 != null ? `<span style="font-size:12px;color:#7d858f">Consumo ${nf(c.l100, 1)} l/100 frente a ${nf(c.avg_l100, 1)} de media en este recorrido.</span>` : ''}
+  </div>`;
+}
+
+function viewDatos() {
+  if (!hist || !refuels) return '<div class="pn pad"><p class="muted">Cargando datos…</p></div>';
+  const pts = hist.points;
+  const km7 = pts.length > 1 ? pts[pts.length - 1].odometer - pts[0].odometer : 0;
+  const priced = refuels.refuels.filter(r => r.price_total);
+  const now = new Date();
+  const month = priced.filter(r => { const d = new Date(r.ts); return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear(); });
+  const spend = month.reduce((s, r) => s + r.price_total, 0);
+  const pL = priced.length ? priced.reduce((s, r) => s + r.price_total, 0) / priced.reduce((s, r) => s + r.litres, 0) : (fuel && fuel.avg);
+  const eurKm = pL && refuels.avg_l100 ? pL * refuels.avg_l100 / 100 : null;
+  const monthName = now.toLocaleDateString('es-ES', { month: 'long' });
+  const rows = refuels.refuels.slice(0, 10).map(r => `
+    <button class="li" data-refuel="${r.ts}" style="grid-template-columns:1fr auto">
+      <span class="col" style="gap:2px"><span style="font-size:15px;font-weight:600">${new Date(r.ts).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}${r.station ? ' · ' + esc(r.station) : ''}${r.photo ? ' 📸' : ''}</span>
+      <span style="font-size:12px;color:#7d858f">${nf(r.odometer)} km${r.l100 ? ' · ' + nf(r.l100, 1) + ' l/100' : ''}</span></span>
+      <span class="col" style="gap:2px;align-items:flex-end"><span class="m" style="font-size:18px;font-weight:700">${r.litres != null ? nf(r.litres, 1) + ' L' : 'Lleno'}</span>
+      <span style="font-size:12px;color:${r.price_total || r.price_l ? C.mu : C.ac}">${r.price_total ? nf(r.price_total, 2) + ' €' + (r.price_auto ? ' · estimado' : ' · ' + nf(r.price_l, 3) + ' €/L') : r.price_l ? nf(r.price_l, 3) + ' €/L' : 'Añadir precio'}</span></span>
+    </button>`).join('') || '<p class="muted" style="padding:0 0 12px">Todavía no se ha detectado ningún repostaje.</p>';
+  const st = fuel && fuel.stations ? fuel.stations.slice(0, 6) : [];
+  const other = cfg.fuel === '95' ? '98' : '95';
+  const favId = fuel && fuel.fav ? fuel.fav.id : null;
+  const star = s => `<button data-fav='${esc(JSON.stringify({ id: s.id, name: s.name, town: s.town, lat: s.lat, lon: s.lon }))}' aria-label="${s.id === favId ? 'Quitar como habitual' : 'Marcar como habitual'}" style="background:none;border:0;font-size:20px;min-width:40px;min-height:44px;color:${s.id === favId ? C.ac : '#3a4048'}">${s.id === favId ? '★' : '☆'}</button>`;
+  const f = fuel && fuel.fav && !fuel.fav.missing ? fuel.fav : null;
+  const favCard = f ? `<div class="pn pad col" style="gap:10px;border-color:${C.ac}55">
+    <div class="row"><span class="k" style="color:${C.ac}">★ Tu gasolinera</span>${star(f)}</div>
+    <a href="https://maps.apple.com/?daddr=${f.lat},${f.lon}" class="row" style="color:inherit;text-decoration:none;align-items:flex-end">
+      <span class="col" style="gap:2px"><span style="font-size:17px;font-weight:700">${esc(f.name)}</span><span style="font-size:12px;color:#7d858f">${esc(f.address || '')} · ${esc(f.town)}${f.km != null ? ' · ' + nf(f.km, 1) + ' km' : ''}</span></span>
+      <span class="col" style="gap:1px;align-items:flex-end"><span class="m" style="font-size:28px;font-weight:700;color:${C.ac}"><span style="font-size:11px;color:#7d858f;font-weight:500">${cfg.fuel} </span>${f.price ? nf(f.price, 3) : '—'}</span>
+      <span class="m" style="font-size:13px;color:#9aa2ab">${other} ${f['p' + other] ? nf(f['p' + other], 3) : 'no tiene'}</span></span></a>
+    ${st[0] && f.price && st[0].id !== f.id ? `<p class="muted">${st[0].price < f.price ? `Ahora mismo la más barata cerca del coche es ${esc(st[0].name)} (${esc(st[0].town)}) a ${nf(st[0].price, 3)}: ${nf((f.price - st[0].price) * 40, 2)} € menos en 40 L.` : 'Sigue siendo de las más baratas de la zona.'}</p>` : ''}
+    ${f.price && f.price < (fuel.avg || 9) ? `<p class="muted">Un depósito de 40 L ahí: ${nf(f.price * 40, 2)} € (media de la zona: ${nf(fuel.avg * 40, 2)} €).</p>` : ''}
+    ${adviceBox()}
+    ${favHist && favHist.history.filter(h => h['p' + cfg.fuel]).length > 2 ? `<span class="k">Precio de la ${cfg.fuel} · últimos días</span>${lineChart(favHist.history.filter(h => h['p' + cfg.fuel]).map(h => ({ ts: Date.parse(h.d), v: h['p' + cfg.fuel] })), 'v', { fmt: v => nf(v, 2), color: C.ac, label: 'Precio en tu gasolinera' })}` : `<p class="muted">Guardo su precio cada día a las 9:00 para enseñarte cómo evoluciona.</p>`}
+    <div class="row" style="gap:10px"><label for="favAlert" style="flex:1">Avísame si la ${cfg.fuel} baja de (€/L)<input id="favAlert" inputmode="decimal" placeholder="1,250" value="${favHist && favHist.alert ? nf(favHist.alert, 3) : ''}"></label><button class="btn sec" id="favAlertSave" style="align-self:flex-end">Guardar</button></div>
+  </div>` : '';
+  const stations = st.map((s, i) => `<div style="display:grid;grid-template-columns:1fr auto;align-items:center">
+    <a class="li" href="https://maps.apple.com/?daddr=${s.lat},${s.lon}" style="grid-template-columns:1fr auto;color:inherit;text-decoration:none">
+      <span class="col" style="gap:2px;min-width:0"><span style="font-size:15px;font-weight:600">${esc(s.name)}</span><span style="font-size:12px;color:#7d858f">${esc(s.town)} · ${nf(s.km, 1)} km</span></span>
+      <span class="col" style="gap:1px;align-items:flex-end"><span class="m" style="font-size:20px;font-weight:700;color:${i === 0 ? C.ac : C.tx}"><span style="font-size:11px;color:#7d858f;font-weight:500">${cfg.fuel} </span>${nf(s.price, 3)}</span><span class="m" style="font-size:13px;color:#9aa2ab">${other} ${s['p' + other] ? nf(s['p' + other], 3) : '—'}</span></span>
+    </a>${star(s)}</div>`).join('');
+  const tk = refuels.tank;
+  const l100 = tk && tk.l100 != null ? tk.l100 : refuels.prev_tank ? refuels.prev_tank.l100 : refuels.avg_l100; // un solo consumo: el del depósito (el que cuadra con el coche)
+  const eurKm2 = pL && l100 ? pL * l100 / 100 : null;
+  return `
+  <div class="pn" style="padding:4px 16px">
+    ${tk ? `<div class="col" style="gap:6px;padding:12px 0;border-bottom:1px solid #1d2126"><span class="k">Depósito actual · desde el ${new Date(tk.since).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}</span>
+      <div class="g3" style="gap:8px"><span class="col"><span class="m" style="font-size:24px;font-weight:700">${tk.l100 != null ? nf(tk.l100, 1) : '—'}</span><span class="muted" style="font-size:11px">${tk.l100 != null ? 'l/100 de media' : 'l/100 (a partir de 50 km)'}</span></span>
+      <span class="col"><span class="m" style="font-size:24px;font-weight:700">${nf(tk.km)}</span><span class="muted" style="font-size:11px">km · ${nf(tk.used_l, 1)} L</span></span>
+      <span class="col"><span class="m" style="font-size:24px;font-weight:700">≈${nf(tk.left_l, 0)} L</span><span class="muted" style="font-size:11px">${tk.range_km != null ? '≈' + nf(tk.range_km) + ' km a este ritmo' : 'quedan'}</span></span></div>
+      ${refuels.prev_tank ? `<span style="font-size:12px;color:#7d858f">Depósito anterior${refuels.prev_tank.full ? ' (lleno a lleno, exacto)' : ''}: <b style="color:var(--tx)">${nf(refuels.prev_tank.l100, 1)} l/100</b> en ${nf(refuels.prev_tank.km)} km${refuels.prev_tank.eur_km ? ` · ${nf(refuels.prev_tank.eur_km * 100, 1)} cts/km` : ''}</span>` : ''}</div>` : ''}
+    <div class="g3" style="gap:8px;padding:12px 0;border-bottom:1px solid #1d2126">
+      <span class="col"><span class="k">Gasto ${esc(monthName)}</span><span class="m" style="font-size:18px;font-weight:700">${month.length ? nf(spend, 2) + ' €' : '—'}</span></span>
+      <span class="col"><span class="k">Coste/km</span><span class="m" style="font-size:18px;font-weight:700">${eurKm2 ? nf(eurKm2 * 100, 1) + ' cts' : '—'}</span></span>
+      <span class="col"><span class="k">7 días</span><span class="m" style="font-size:18px;font-weight:700">${nf(km7)} km</span></span>
+    </div>
+    <div class="col" style="gap:6px;padding:12px 0;border-bottom:1px solid #1d2126"><div class="row"><span class="k">Nivel · 7 días</span><span class="m" style="font-size:13px;color:${C.ac}">${pts.length ? nf(pts[pts.length - 1].fuel_pct) + ' %' : ''}</span></div>
+      ${lineChart(pts, 'fuel_pct', { min: 0, max: 100, fmt: v => nf(v), color: C.ac, label: 'Nivel del depósito' })}</div>
+    <div class="row" style="padding:12px 0"><span class="k">Repostajes</span><button class="m" id="copyCsv" style="background:none;border:0;color:${C.ac};font-size:12px;font-weight:600;letter-spacing:.08em;min-height:36px">COPIAR CSV</button></div>
+    <label class="btn sec" for="pumpFile" data-pump="" style="margin-bottom:8px;width:100%">📸 Foto del surtidor</label>
+    ${rows}
+  </div>
+  ${favCard}
+  <div class="pn" style="padding:4px 16px">
+    <div class="row" style="padding:12px 0"><span class="k">Gasolina ${cfg.fuel} cerca del coche</span>${fuel && fuel.date ? `<span style="font-size:11px;color:#7d858f">Ministerio · ${esc(String(fuel.date).slice(0, 16))}</span>` : ''}</div>
+    ${stations || `<p class="muted" style="padding:0 0 12px">${esc(fuelErr || 'Cargando precios…')}</p>`}
+  </div>
+  ${expensesCard()}`;
+}
+
+function expensesCard() {
+  const e = expenses;
+  if (!e) return '';
+  const cats = Object.entries(e.by_cat).sort((a, b) => b[1] - a[1]);
+  const max = cats.length ? cats[0][1] : 1;
+  return `<div class="pn pad col" style="gap:12px">
+    <div class="row"><span class="k">Gastos del coche · ${e.year}</span><span class="m" style="font-size:22px;font-weight:700;color:${C.ac}">${nf(e.total, 2)} €</span></div>
+    <div class="g2" style="gap:8px">
+      <div class="col" style="gap:2px"><span class="k">Km este año</span><span class="m" style="font-size:18px;font-weight:700">${e.km ? nf(e.km) : '—'}</span></div>
+      <div class="col" style="gap:2px"><span class="k">Coste real por km</span><span class="m" style="font-size:18px;font-weight:700">${e.eur_km ? nf(e.eur_km * 100, 1) + ' cént.' : '—'}</span></div>
+    </div>
+    ${cats.map(([k, v]) => `<div class="col" style="gap:4px"><div class="row"><span style="font-size:14px">${esc(k)}</span><span class="m" style="font-size:14px;font-weight:700">${nf(v, 2)} €</span></div><div class="bar"><div style="width:${Math.round(v / max * 100)}%;background:${k === 'Gasolina' ? C.ac : C.blue}"></div></div></div>`).join('') || '<p class="muted">Sin gastos todavía este año.</p>'}
+    ${e.items.slice(0, 8).map(x => `<button class="li" data-expense="${esc(x.id)}" style="grid-template-columns:1fr auto"><span class="col" style="gap:2px"><span style="font-size:15px;font-weight:600">${esc(x.desc || x.cat)}</span><span style="font-size:12px;color:#7d858f">${esc(x.cat)} · ${new Date(x.date).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}</span></span><span class="m" style="font-size:17px;font-weight:700">${nf(x.eur, 2)} €</span></button>`).join('')}
+    <button class="btn sec" data-expense="new">+ Añadir gasto (taller, seguro, ITV, neumáticos…)</button>
+    <p class="muted" style="margin:0">La gasolina se suma sola desde los repostajes con precio.</p>
+  </div>`;
+}
+
+function viewTaller() {
+  if (!maint) return '<div class="pn pad"><p class="muted">Cargando mantenimiento…</p></div>';
+  const col = { vencido: C.bad, pronto: C.wa, ok: C.ok, 'sin datos': C.mu };
+  const lab = { vencido: 'Vencido', pronto: 'Pronto', ok: 'Al día', 'sin datos': 'Sin configurar' };
+  const unset = maint.items.filter(i => i.status === 'sin datos' && !i.oil_life);
+  const items = maint.items.filter(i => !unset.includes(i)).map(i => {
+    const segs = Array.from({ length: 12 }, (_, k) => `<div style="height:10px;border-radius:2px;background:${i.status !== 'sin datos' && (k + 1) / 12 <= i.pct + 1e-9 ? col[i.status] : '#1d2126'}"></div>`).join('');
+    const last = [i.last_km != null ? 'Último: ' + nf(i.last_km) + ' km' : '', i.last_date ? new Date(i.last_date).toLocaleDateString('es-ES') : '',
+      i.interval_km ? 'cada ' + nf(i.interval_km) + ' km' : '', i.interval_months ? 'cada ' + i.interval_months + ' meses' : ''].filter(Boolean).join(' · ');
+    return `<div class="pn pad col" style="gap:10px">
+      <div class="row"><span style="font-size:16px;font-weight:600">${esc(i.name)}</span><span class="tag" style="color:${col[i.status]};border-color:${col[i.status]}55">${lab[i.status]}</span></div>
+      <div style="display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:3px">${segs}</div>
+      <div class="col" style="gap:2px"><span class="m" style="font-size:14px;font-weight:600">${esc(i.summary)}</span><span style="font-size:12px;color:#7d858f">${esc(last)}</span>${i.eta ? `<span style="font-size:12px;color:${C.ac}">≈ ${new Date(i.eta).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })} a tu ritmo${i.oil_km_left != null ? ' (unos ' + nf(i.oil_km_left) + ' km)' : ''}</span>` : ''}${i.track_note ? `<span style="font-size:12px;color:${C.ac}">🏁 ${esc(i.track_note)}</span>` : ''}${i.notes ? `<span style="font-size:12px;color:#7d858f">${esc(i.notes)}</span>` : ''}</div>
+      <div class="btns"><button class="btn sec" data-done="${i.id}">Hecho hoy</button><button class="btn sec" data-edit="${i.id}">Editar</button></div>
+    </div>`;
+  }).join('');
+  return `
+  ${live && live.oil_life_pct != null ? `<div class="pn pad col" style="gap:8px"><div class="row"><span class="k">Vida del aceite · según Ford</span><span class="m" style="font-size:26px;font-weight:700;color:${live.oil_life_pct < 15 ? C.bad : live.oil_life_pct < 30 ? C.wa : C.ok}">${nf(live.oil_life_pct)} %</span></div>
+    <div style="display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:3px">${Array.from({ length: 12 }, (_, k) => `<div style="height:10px;border-radius:2px;background:${(k + 1) / 12 <= live.oil_life_pct / 100 + 1e-9 ? (live.oil_life_pct < 15 ? C.bad : live.oil_life_pct < 30 ? C.wa : C.ok) : '#1d2126'}"></div>`).join('')}</div>
+    <span style="font-size:12px;color:#7d858f">El coche lo calcula según tu forma de conducir. Cuando llegue a 0 % toca cambiarlo.${maint.oil_km_per_pct ? ` Baja un 1 % cada ${nf(maint.oil_km_per_pct)} km.` : ' La fecha estimada sale cuando baje un par de puntos más.'}</span></div>` : ''}
+  <div class="pn pad row"><div class="col" style="gap:4px"><span class="k">Odómetro</span><span class="m" style="font-size:26px;font-weight:700">${nf(maint.odometer)} km</span>${maint.km_per_day ? `<span style="font-size:12px;color:#7d858f">≈ ${nf(maint.km_per_day)} km al día</span>` : ''}</div>
+    <span style="font-size:12px;color:#7d858f;max-width:170px;text-align:right">${unset.length ? 'Intervalos de ejemplo: ajústalos. ' : ''}Aviso a las 9:00 si faltan 1.000 km o 30 días.</span></div>
+  ${wheelsCard()}
+  ${tyreCard()}
+  ${deadlineCard()}
+  ${items}
+  ${unset.length ? `<div class="pn" style="padding:4px 16px">
+    <div class="k" style="padding:12px 0 4px">${unset.length} sin configurar · toca para poner cuándo se hizo</div>
+    ${unset.map(i => `<div class="li" style="grid-template-columns:1fr auto auto;gap:8px">
+      <button data-edit="${i.id}" class="col" style="gap:2px;background:none;border:0;padding:0;text-align:left;color:inherit"><span style="font-size:15px;font-weight:600">${esc(i.name)}</span><span style="font-size:12px;color:#7d858f">${[i.interval_km ? 'cada ' + nf(i.interval_km) + ' km' : '', i.interval_months ? 'cada ' + i.interval_months + ' meses' : ''].filter(Boolean).join(' · ')}</span></button>
+      <button class="btn sec" data-done="${i.id}" style="min-height:36px;padding:0 10px;font-size:11px">Hecho hoy</button>
+      <button class="btn sec" data-edit="${i.id}" style="min-height:36px;padding:0 10px;font-size:11px">Poner</button>
+    </div>`).join('')}
+  </div>` : ''}
+  <button class="btn ghost" data-edit="new" style="min-height:52px">+ Añadir tarea</button>`;
+}
+
+// ---------- Ruedas en gráfico: dibujo por zonas, presiones y observaciones ----------
+const WHEEL = { fl: 'delantera izquierda', fr: 'delantera derecha', rl: 'trasera izquierda', rr: 'trasera derecha' };
+const zoneMin = z => z == null ? null : typeof z === 'number' ? z : (v => v.length ? Math.min(...v) : null)([z.o, z.c, z.i].filter(v => v != null));
+// Color continuo: rojo en 1,6 mm → amarillo → verde con el dibujo de nuevas (así se ven las diferencias entre zonas)
+const mmCol = (v, nw = 7.1) => { if (v == null) return '#2a2f35'; const f = Math.max(0, Math.min(1, (v - 1.6) / (nw - 1.6))); return `hsl(${Math.round(f * 140)} 70% ${46 + f * 4}%)`; };
+function wheelsSvg(c, L) {
+  const W = 340, H = 340, tw = 90, th = 108, nw = (tyreSet && tyreSet.new_mm) || 7.1;
+  const pos = { fl: [8, 52, 'L'], fr: [242, 52, 'R'], rl: [8, 200, 'L'], rr: [242, 200, 'R'] };
+  const t = (c && c.tyres) || {}, ref = (c && c.tyre_ref) || {};
+  let g = `<rect x="108" y="40" width="124" height="282" rx="44" fill="#16191d" stroke="#2a2f35"/>
+    <rect x="126" y="96" width="88" height="58" rx="10" fill="#0e1012" stroke="#2a2f35"/><rect x="130" y="232" width="80" height="40" rx="10" fill="#0e1012" stroke="#2a2f35"/>
+    <text x="170" y="30" text-anchor="middle" fill="#7d858f" font-size="10" letter-spacing="2">DELANTE</text>`;
+  for (const k of ['fl', 'fr', 'rl', 'rr']) {
+    const [x, y, side] = pos[k];
+    const z = L ? L[k] : null;
+    const zones = z == null ? { o: null, c: null, i: null } : typeof z === 'number' ? { o: null, c: z, i: null } : z;
+    // de izquierda a derecha en pantalla: en las ruedas izquierdas el exterior va a la izquierda; en las derechas, a la derecha
+    const order = side === 'L' ? ['o', 'c', 'i'] : ['i', 'c', 'o'];
+    const bw = tw / 3;
+    g += `<clipPath id="cp_${k}"><rect x="${x}" y="${y}" width="${tw}" height="${th}" rx="12"/></clipPath><g clip-path="url(#cp_${k})">`;
+    order.forEach((zk, i) => { g += `<rect x="${x + i * bw}" y="${y}" width="${bw + 0.5}" height="${th}" fill="${mmCol(zones[zk], nw)}" opacity="${zones[zk] == null ? 1 : .85}"/>`; });
+    // dibujo del neumático (más o menos): surcos longitudinales y laminillas en diagonal
+    for (let i = 1; i < 3; i++) g += `<rect x="${x + i * bw - 2}" y="${y}" width="4" height="${th}" fill="#0a0b0d" opacity=".75"/>`;
+    for (let yy = y - 20; yy < y + th; yy += 13) g += `<path d="M${x} ${yy + 10} l${bw - 3} -8 M${x + bw + 2} ${yy + 4} l${bw - 4} 8 M${x + 2 * bw + 2} ${yy + 12} l${bw - 3} -8" stroke="#0a0b0d" stroke-width="2.2" opacity=".55" fill="none"/>`;
+    g += `</g><rect x="${x}" y="${y}" width="${tw}" height="${th}" rx="12" fill="none" stroke="#3a4048" stroke-width="1.5"/>`;
+    order.forEach((zk, i) => { if (zones[zk] != null) g += `<rect x="${x + i * bw + 2}" y="${y + th / 2 - 9}" width="${bw - 4}" height="17" rx="4" fill="#0a0b0d" opacity=".78"/><text x="${x + i * bw + bw / 2}" y="${y + th / 2 + 4}" text-anchor="middle" fill="#f4f5f6" font-size="11" font-weight="700" font-family="var(--mono)">${nf(zones[zk], 1)}</text>`; });
+    if (z == null) g += `<text x="${x + tw / 2}" y="${y + th / 2 + 4}" text-anchor="middle" fill="#7d858f" font-size="10">sin medir</text>`;
+    // presión: encima de las delanteras, debajo de las traseras
+    const v = t[k], r = ref[k], d = v != null && r != null ? v - r : null;
+    const pc = v == null ? C.mu : (d != null ? d <= -0.12 : tyreLow(c, k)) || tyreLow(c, k) ? C.wa : d >= 0.15 ? C.blue : C.tx;
+    const py = k[0] === 'f' ? y - 8 : y + th + 18;
+    g += `<text x="${x + tw / 2}" y="${py}" text-anchor="middle" fill="${pc}" font-size="15" font-weight="700" font-family="var(--mono)">${v != null ? nf(v, 2) : '—'}<tspan font-size="10" fill="#7d858f"> bar</tspan></text>`;
+    // ext/int bajo cada rueda delantera, para orientarse
+    if (k === 'fl' || k === 'fr') g += `<text x="${x + 6}" y="${y + th + 12}" fill="#7d858f" font-size="8">${side === 'L' ? 'EXT' : 'INT'}</text><text x="${x + tw - 6}" y="${y + th + 12}" text-anchor="end" fill="#7d858f" font-size="8">${side === 'L' ? 'INT' : 'EXT'}</text>`;
+  }
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Ruedas: dibujo por zonas y presiones">${g}</svg>`;
+}
+function wheelNotes(c, ts) {
+  const out = [];
+  const t = (c && c.tyres) || {}, ref = (c && c.tyre_ref) || {};
+  const running = c && c.ignition && c.ignition !== 'off';
+  const lastTrip = trips && trips[0] ? trips[0].end_ts : 0;
+  const hot = running || (Date.now() - lastTrip < 45 * 60e3);
+  const P = (k, v) => `${WHEEL[k]} ${nf(v, 2)} bar`;
+  // En caliente se comparan las presiones en frío de hoy (las del arranque, con el motor frío)
+  const cold = ts && ts.cold && ts.cold.ts && Date.now() - ts.cold.ts < 20 * 3600e3 ? ts.cold : null;
+  const useCold = hot && cold;
+  if (Object.keys(t).length) {
+    if (useCold) out.push(['i', `En caliente suben 0,2-0,3 bar, así que comparo con las de hoy en frío (${hm(cold.ts)}): ${['fl', 'fr', 'rl', 'rr'].map(k => nf(cold[k], 2)).join(' · ')} bar.`]);
+    else if (hot) out.push(['i', 'Presiones en caliente: al rodar suben 0,2-0,3 bar. Para compararlas con las tuyas, míralas en frío (por la mañana o tras 2-3 h parado).']);
+    for (const k of ['fl', 'fr', 'rl', 'rr']) {
+      const v = useCold ? cold[k] : t[k], r = ref[k]; if (v == null || r == null) continue;
+      const d = v - r;
+      if ((!hot || useCold) && d <= -0.12) out.push(['w', `${P(k, v)}: baja (${nf(d, 2)}). Ponla a ${nf(r, 2)}: con poca presión se gastan los dos hombros y se calienta más.`]);
+      if ((!hot || useCold) && d >= 0.15) out.push(['b', `${P(k, v)}: algo inflada (+${nf(d, 2)}). Con mucha presión se gasta más el centro y agarra menos.`]);
+    }
+    for (const [a, b, n] of [['fl', 'fr', 'delanteras'], ['rl', 'rr', 'traseras']]) {
+      const P2 = useCold ? cold : t;
+      if (P2[a] != null && P2[b] != null && Math.abs(P2[a] - P2[b]) >= (hot && !useCold ? 0.15 : 0.1)) out.push(['w', `Las ${n} van distintas${useCold ? ' en frío' : ''} (${nf(P2[a], 2)} y ${nf(P2[b], 2)}): iguálalas, si no el coche tira hacia un lado al frenar.`]);
+    }
+  }
+  const L = ts && ts.tread_last;
+  if (L) {
+    const m = k => zoneMin(L[k]);
+    (ts.tread_notes || []).forEach(n => out.push(['w', n[0].toUpperCase() + n.slice(1) + '.']));
+    const f = [m('fl'), m('fr')].filter(v => v != null), r = [m('rl'), m('rr')].filter(v => v != null);
+    if (f.length && r.length) {
+      const df = r.reduce((a, b) => a + b, 0) / r.length - f.reduce((a, b) => a + b, 0) / f.length;
+      if (df >= 1.5) out.push(['w', `Las delanteras están ${nf(df, 1)} mm más gastadas que las traseras: permútalas ya, aunque no hayan pasado los 10.000 km. Con tanta diferencia el coche se descompensa y las delanteras se acaban antes.`]);
+      else if (df >= 0.8) out.push(['i', `Las delanteras están ${nf(df, 1)} mm más gastadas que las traseras (normal en un tracción delantera). ${ts.rotate_in_km != null && ts.rotate_in_km <= 0 ? 'Toca permutar.' : ts.rotate_in_km != null ? `Permútalas en ${nf(ts.rotate_in_km)} km o cuando la diferencia llegue a 1,5 mm, lo que pase antes.` : 'Permútalas cuando la diferencia llegue a 1,5 mm.'}`]);
+      else if (df <= -0.8) out.push(['w', `Las traseras están ${nf(-df, 1)} mm más gastadas que las delanteras: es raro en un tracción delantera. Revisa la alineación trasera.`]);
+    }
+    for (const [a, b] of [['fl', 'fr'], ['rl', 'rr']]) {
+      if (m(a) != null && m(b) != null && Math.abs(m(a) - m(b)) >= 0.5) {
+        const [w, o] = m(a) < m(b) ? [a, b] : [b, a];
+        out.push(['w', `La ${WHEEL[w]} está ${nf(Math.abs(m(a) - m(b)), 1)} mm más gastada que la ${WHEEL[o]}: revisa presión y alineación de ese lado.`]);
+      }
+    }
+    for (const k of ['fl', 'fr', 'rl', 'rr']) {
+      const v = m(k); if (v == null) continue;
+      if (v < 1.6) out.push(['x', `${WHEEL[k][0].toUpperCase() + WHEEL[k].slice(1)} por debajo de 1,6 mm: es ilegal y peligrosa. Cámbiala.`]);
+      else if (v < 3) out.push(['w', `${WHEEL[k][0].toUpperCase() + WHEEL[k].slice(1)} a ${nf(v, 1)} mm: en mojado ya agarra bastante menos. Ve pensando en cambiarlas.`]);
+    }
+    const P0 = ts.tread_prev;
+    if (P0) {
+      const km = L.km - P0.km;
+      const worst = ['fl', 'fr', 'rl', 'rr'].map(k => ({ k, d: zoneMin(P0[k]) != null && m(k) != null ? zoneMin(P0[k]) - m(k) : null })).filter(x => x.d != null).sort((a, b) => b.d - a.d)[0];
+      if (worst && km > 500) out.push(['i', `Desde la medida anterior (${nf(km)} km) la que más ha gastado es la ${WHEEL[worst.k]}: ${nf(worst.d, 1)} mm.`]);
+    }
+  } else out.push(['i', 'Mide el dibujo (exterior, centro e interior de cada rueda) para ver cómo se gastan y comparar entre ellas.']);
+  if (!out.some(o => o[0] === 'w' || o[0] === 'x' || o[0] === 'b')) out.push(['ok', L ? 'Todo en orden: presiones correctas y desgaste parejo.' : 'Presiones correctas.']);
+  const ic = { i: ['ℹ︎', C.mu], w: ['⚠︎', C.wa], b: ['↑', C.blue], x: ['⛔', C.bad], ok: ['✓', C.ok] };
+  return out.map(([k, txt]) => `<div style="display:grid;grid-template-columns:18px 1fr;gap:6px;font-size:13px;line-height:1.35"><span style="color:${ic[k][1]};font-weight:700">${ic[k][0]}</span><span>${esc(txt)}</span></div>`).join('');
+}
+function wheelsCard() {
+  const c = live, ts = tyreSet;
+  if (!c || !c.tyres) return '';
+  const L = ts && ts.tread_last;
+  return `<div class="pn pad col" id="ruedas" style="gap:12px">
+    <div class="row"><span class="k">Ruedas · dibujo y presiones</span>${L ? `<span style="font-size:11px;color:#7d858f">medido el ${new Date(L.date).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}</span>` : ''}</div>
+    ${wheelsSvg(c, L)}
+    <div class="row" style="justify-content:center;gap:12px;font-size:11px;color:#7d858f;flex-wrap:wrap">
+      <span style="display:inline-flex;align-items:center;gap:6px">1,6 mm<span style="display:inline-block;width:70px;height:8px;border-radius:4px;background:linear-gradient(90deg,hsl(0 70% 46%),hsl(70 70% 48%),hsl(140 70% 50%))"></span>nueva (${nf((ts && ts.new_mm) || 7.1, 1)})</span><span><span style="color:${C.wa}">bar</span> baja · <span style="color:${C.blue}">bar</span> alta</span>
+    </div>
+    <div class="col" style="gap:8px">${wheelNotes(c, ts)}</div>
+    <div class="btns"><button class="btn sec" data-tread>Medir dibujo</button></div>
+  </div>`;
+}
+
+function tyreCard() {
+  const t = tyreSet;
+  if (!t) return '';
+  if (!t.model && t.mounted_km == null) return `<button class="pn pad col" data-tyreset style="gap:6px;text-align:left"><span class="k">Neumáticos</span><span style="font-size:15px">Añade qué ruedas llevas y cuándo las montaste para contar sus km.</span></button>`;
+  const rot = t.rotate_in_km;
+  const L = t.tread_last, fm = L ? [zoneMin(L.fl), zoneMin(L.fr)].filter(v => v != null) : [], rm = L ? [zoneMin(L.rl), zoneMin(L.rr)].filter(v => v != null) : [];
+  const diffRot = fm.length && rm.length && (rm.reduce((a, b) => a + b, 0) / rm.length - fm.reduce((a, b) => a + b, 0) / fm.length) >= 1.5;
+  return `<div class="pn pad col" style="gap:10px">
+    <div class="row"><span class="k">Neumáticos</span>${diffRot ? `<span class="tag" style="color:${C.wa};border-color:${C.wa}55">Toca rotar (desgaste)</span>` : rot != null ? `<span class="tag" style="color:${rot <= 0 ? C.wa : C.ok};border-color:${rot <= 0 ? C.wa : C.ok}55">${rot <= 0 ? 'Toca rotar' : 'Rotar en ' + nf(rot) + ' km'}</span>` : ''}</div>
+    <div class="col" style="gap:2px"><span style="font-size:16px;font-weight:600">${esc(t.model || 'Sin modelo')}</span><span class="muted">${esc(t.size || '')}${t.mounted_date ? ' · montadas el ' + new Date(t.mounted_date).toLocaleDateString('es-ES') : ''}</span></div>
+    <div class="g3" style="gap:8px">
+      <div class="col" style="gap:2px"><span class="k">Total</span><span class="m" style="font-size:20px;font-weight:700">${t.km != null ? nf(t.km) : '—'}<span style="font-size:12px;color:#7d858f"> km</span></span></div>
+      <div class="col" style="gap:2px"><span class="k">En circuito</span><span class="m" style="font-size:20px;font-weight:700;color:${C.ac}">${nf(t.track_km)}<span style="font-size:12px;color:#7d858f"> km</span></span></div>
+      <div class="col" style="gap:2px"><span class="k">Días pista</span><span class="m" style="font-size:20px;font-weight:700">${nf(t.track_days)}</span></div>
+    </div>
+    ${t.left_km != null ? `<div class="col" style="gap:4px"><div style="height:8px;border-radius:4px;background:#1d2126;overflow:hidden"><div style="height:100%;width:${Math.round(t.left_km / t.life_km * 100)}%;background:${t.left_km < 3000 ? C.wa : C.ok}"></div></div>
+      <span style="font-size:12px;color:#7d858f">${t.from_tread
+        ? `Dibujo ≈ ${nf(t.tread_now, 1)} mm (gastan ${nf(t.tread_rate, 2)} mm cada 1.000 km). Les quedan unos ${nf(t.left_km)} km hasta 1,6 mm${t.left_3mm_km != null ? ` (${nf(t.left_3mm_km)} km hasta 3 mm, cuando ya agarran peor en mojado)` : ''}${t.eta ? ' · cambio ≈ ' + new Date(t.eta).toLocaleDateString('es-ES', { month: 'long', year: 'numeric' }) : ''}.`
+        : `Les quedan unos ${nf(t.left_km)} km de ${nf(t.life_km)} orientativos${t.eta ? ' · cambio ≈ ' + new Date(t.eta).toLocaleDateString('es-ES', { month: 'long', year: 'numeric' }) : ''}. Cada km en circuito cuenta como 8. Mide el dibujo para afinarlo.`}</span></div>`
+      : `<span style="font-size:12px;color:${C.ac}">Pon los km a los que las montaste (Editar) y te calculo cuánto les queda.</span>`}
+    ${t.tread_last ? (() => { const L = t.tread_last; const zm = z => z == null ? null : typeof z === 'number' ? z : Math.min(...[z.o, z.c, z.i].filter(v => v != null));
+      return `<span style="font-size:12px;color:#7d858f">Última medida (${new Date(L.date).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}, lo más gastado): del. ${nf(zm(L.fl), 1)} / ${nf(zm(L.fr), 1)} · tras. ${nf(zm(L.rl), 1)} / ${nf(zm(L.rr), 1)} mm</span>`
+        + (t.tread_notes || []).map(n => `<span style="font-size:12px;color:${C.wa}">⚠︎ ${esc(n)}</span>`).join(''); })() : ''}
+    <div class="btns"><button class="btn sec" data-tyrerot>Rotadas hoy</button><button class="btn sec" data-tread>Medir dibujo</button><button class="btn sec" data-tyreset>Editar</button></div>
+  </div>`;
+}
+
+function deadlineCard() {
+  if (!deadlines) return '';
+  const col = { vencido: C.bad, pronto: C.wa, ok: C.ok, 'sin datos': C.mu };
+  return `<div class="pn" style="padding:4px 16px">
+    <div class="k" style="padding:12px 0 4px">Fechas · aviso a 30, 7 y 1 día</div>
+    ${deadlines.map(d => `<button class="li" data-deadline="${esc(d.id)}" style="grid-template-columns:1fr auto">
+      <span class="col" style="gap:2px"><span style="font-size:15px;font-weight:600">${esc(d.name)}</span><span style="font-size:12px;color:#7d858f">${d.date ? new Date(d.date).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' }) : 'Toca para poner la fecha'}</span></span>
+      <span class="m" style="font-size:14px;font-weight:700;color:${col[d.status]}">${d.days == null ? '—' : d.days < 0 ? 'Vencido' : d.days === 0 ? 'Hoy' : d.days + ' días'}</span>
+    </button>`).join('')}
+    <button class="li" data-deadline="new" style="grid-template-columns:1fr;color:${C.ac};font-weight:600">+ Añadir fecha</button>
+  </div>`;
+}
+
+function viewAjustes() {
+  const pushOn = typeof Notification !== 'undefined' && Notification.permission === 'granted';
+  const serverForm = `
+  <form class="pn pad col" id="cfgForm" style="gap:12px">
+    <span class="k">Conexión con tu servidor</span>
+    <label for="fUrl">URL del Worker<input id="fUrl" type="url" inputmode="url" autocapitalize="off" autocorrect="off" placeholder="https://mi-coche-api.tu-usuario.workers.dev" value="${esc(cfg.url || '')}" required></label>
+    <label for="fKey">Contraseña (APP_KEY)<input id="fKey" type="password" autocomplete="current-password" value="${esc(cfg.key || '')}" required></label>
+    <button class="btn" type="submit">Guardar y conectar</button>
+  </form>
+  <p class="muted">La conexión se guarda solo en este móvil.</p>`;
+  return `
+  ${cfg.url ? '' : serverForm}
+  <form class="pn pad col" id="carForm" style="gap:10px">
+    <span class="k">Tu coche</span>
+    <div class="g2">
+      <label for="cName">Nombre corto<input id="cName" maxlength="20" value="${esc((carCfg && carCfg.name) || 'MI ST')}"></label>
+      <label for="cTank">Depósito (L)<input id="cTank" inputmode="numeric" value="${esc(String((carCfg && carCfg.tank_l) || 45))}"></label>
+    </div>
+    <label for="cModel">Modelo<input id="cModel" maxlength="40" value="${esc((carCfg && carCfg.model) || 'Fiesta ST · Mk8')}"></label>
+    <button class="btn sec" type="submit">Guardar</button>
+  </form>
+  <div class="pn pad col" style="gap:10px">
+    <span class="k">Gasolina que usas</span>
+    <div class="seg-pick" role="group" aria-label="Tipo de gasolina">
+      <button type="button" data-fuel="95" class="${cfg.fuel === '95' ? 'on' : ''}">95 E5</button>
+      <button type="button" data-fuel="98" class="${cfg.fuel === '98' ? 'on' : ''}">98 E5</button>
+    </div>
+    <p class="muted">Se usa para buscar la gasolinera más barata, el precio automático al repostar y el consejo de cuándo llenar. En cada gasolinera ves también el precio de la otra.</p>
+  </div>
+  ${cfg.url ? `<div class="pn pad col" style="gap:10px">
+    <span class="k">Avisos en el móvil</span>
+    ${standalone
+      ? `<p class="muted">Repostajes, neumáticos, batería, coche abierto, poco combustible, motor a temperatura, taller y resumen de los lunes.</p>
+         <div class="btns"><button class="btn" id="pushOn">${pushOn ? 'Volver a activar' : 'Activar avisos'}</button><button class="btn sec" id="pushTest">Enviar prueba</button></div>`
+      : '<p class="muted">Para recibir avisos en el iPhone, abre la app desde su icono: en Safari, toca Compartir y luego "Añadir a pantalla de inicio".</p>'}
+  </div>
+  <div class="pn pad col" style="gap:10px">
+    <span class="k">Widget (inicio y pantalla de bloqueo)</span>
+    <div class="btns"><button class="btn sec" id="copyWidget">Copiar código</button><a class="btn sec" href="https://apps.apple.com/app/scriptable/id1405459188">Scriptable</a></div>
+    <details><summary class="muted" style="cursor:pointer">Cómo se instala ›</summary>
+    <p class="muted">1. Instala la app gratuita <b>Scriptable</b> de la App Store.<br>2. Copia el código, abre Scriptable, toca + y pégalo.<br>3. Ejecútalo una vez: te pide la URL y la contraseña.<br>4. Mantén pulsado el escritorio → + → Scriptable → elige el script.</p>
+    <p class="muted">Pantalla de bloqueo: mantén pulsada la pantalla bloqueada → Personalizar → Pantalla de bloqueo → toca la zona de widgets → Scriptable (el rectangular o el redondo) → elige el mismo script.</p></details>
+  </div>
+  <div class="pn pad col" style="gap:10px">
+    <span class="k">Siri: "¿Cómo está el coche?"</span>
+    <div class="btns"><button class="btn sec" id="copySiri">Copiar dirección</button><button class="btn sec" id="testSiri">Probar</button></div>
+    <p id="siriOut" class="muted" style="color:var(--tx)"></p>
+    <details><summary class="muted" style="cursor:pointer">Cómo se crea el atajo ›</summary>
+    <p class="muted">1. Toca <b>Copiar dirección</b> (ya lleva tu contraseña dentro, no hace falta poner cabeceras).<br>
+    2. En <b>Atajos</b>: + → busca <b>Obtener contenido de URL</b> → toca "URL" y pega.<br>
+    3. Añade <b>Leer texto</b> debajo.<br>
+    4. Ponle de nombre <b>Cómo está el coche</b>. Di "Oye Siri, cómo está el coche".</p></details>
+  </div>
+  <div class="pn pad col" style="gap:12px">
+    <span class="k">Presiones de diario (bar)</span>
+    <p class="muted">Los avisos de presión baja usan estas. Si las dejas vacías, se usan las que trae guardadas el coche (2,07 / 1,79). En circuito no hay avisos.</p>
+    <div class="g2">
+      <label>Delante<input id="tFront" inputmode="decimal" placeholder="2,20" value="${tyrePrefs && tyrePrefs.front ? nf(tyrePrefs.front, 2) : ''}"></label>
+      <label>Detrás<input id="tRear" inputmode="decimal" placeholder="2,10" value="${tyrePrefs && tyrePrefs.rear ? nf(tyrePrefs.rear, 2) : ''}"></label>
+    </div>
+    <button class="btn sec" id="tSave">Guardar presiones</button>
+  </div>
+  <div class="pn pad col" style="gap:12px">
+    <span class="k">Vigilancia</span>
+    ${guard ? `
+    <label style="flex-direction:row;align-items:center;justify-content:space-between;text-transform:none;letter-spacing:0;font:500 15px var(--body);color:var(--tx)">Siempre activa<input type="checkbox" id="gEnabled" ${guard.enabled ? 'checked' : ''} style="width:auto;accent-color:${C.ac};transform:scale(1.4)"></label>
+    <label style="flex-direction:row;align-items:center;justify-content:space-between;text-transform:none;letter-spacing:0;font:500 15px var(--body);color:var(--tx)">Solo de noche<input type="checkbox" id="gNight" ${guard.night ? 'checked' : ''} style="width:auto;accent-color:${C.ac};transform:scale(1.4)"></label>
+    <div class="g2"><label for="gFrom">Desde<input id="gFrom" type="time" value="${guard.from}"></label><label for="gTo">Hasta<input id="gTo" type="time" value="${guard.to}"></label></div>
+    <p class="muted">Te aviso si el coche arranca mientras está activa, y siempre que se mueva más de 300 m con el motor apagado.</p>` : '<p class="muted">Cargando…</p>'}
+  </div>
+  ${fordSt ? `<div class="pn pad col" style="gap:10px">
+    <div class="row"><span class="k">Conexión con Ford</span><span class="tag" style="color:${fordSt.health ? C.bad : C.ok};border-color:${fordSt.health ? C.bad : C.ok}55">${fordSt.health ? 'Fallando' : fordSt.connected ? 'Conectado' : 'Sin conectar'}</span></div>
+    <span style="font-size:13px;color:#7d858f">Coche …${esc(fordSt.vin_end || '')}${fordSt.last_data ? ' · última lectura ' + ago(fordSt.last_data) : ''}</span>
+    ${fordSt.health ? `<p style="margin:0;font-size:13px;color:${C.bad}">Falla desde ${hm(fordSt.health.failSince)}: ${esc(fordSt.health.last || '')}</p>
+    <p class="muted">Para reconectar: abre tu Codespace de GitHub (github.com/codespaces), en el escritorio (puerto 6080) abre el terminal y ejecuta <b>python herramientas/conectar_ford.py --nuevo</b>. Inicia sesión en la página de Ford y listo.</p>` : '<p class="muted">Si un día falla más de una hora seguida, te llega un aviso con los pasos para reconectar.</p>'}
+  </div>` : ''}
+  <div class="pn pad col" style="gap:10px">
+    <span class="k">Copia de seguridad</span>
+    <p class="muted">Cada domingo a las 4:00 se guarda una copia automática en un almacén aparte (se conservan las 12 últimas). También puedes descargar una ahora y guardarla en Archivos o iCloud.</p>
+    ${backups && backups.backups.length ? backups.backups.slice(0, 4).map(b => `<button class="li" data-backup="${esc(b.name)}" style="grid-template-columns:1fr auto"><span style="font-size:14px">${new Date(b.name.slice(6)).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}</span><span class="m" style="font-size:13px;color:#7d858f">${b.bytes ? nf(b.bytes / 1024) + ' KB' : ''} ↓</span></button>`).join('') : '<p class="muted" style="margin:0">La primera copia automática se hará este domingo.</p>'}
+    <button class="btn sec" id="backupBtn">Descargar copia ahora</button>
+  </div>
+  ${serverForm}
+  <button class="btn sec" id="cancelCfg">Volver</button>` : ''}`;
+}
+
+function sheetHtml() {
+  if (!sheet) return '';
+  if (sheet.type === 'refuel') {
+    const r = sheet.item;
+    return `<form class="sheet" id="sheetForm">
+      <span class="k">Repostaje del ${new Date(r.ts).toLocaleDateString('es-ES', { day: 'numeric', month: 'long' })}</span>
+      ${r.photo ? `<img id="sPhoto" alt="Foto del surtidor" style="width:100%;max-height:220px;object-fit:cover;border-radius:10px;background:#15181c;min-height:120px">` : ''}
+      <label class="btn sec" for="pumpFile" data-pump="${r.ts}">📸 ${r.photo ? 'Cambiar foto del surtidor' : 'Rellenar con foto del surtidor'}</label>
+      <label for="sLitres">Litros del tique<input id="sLitres" inputmode="decimal" value="${r.litres != null ? nf(r.litres, 2) : ''}" placeholder="41,00"></label>
+      <p class="muted">Pon los litros reales del surtidor: si llenaste el depósito, con ellos se corrige el cálculo de consumo de los trayectos.</p>
+      ${r.price_auto ? '<p class="muted">Precio calculado con la gasolinera más cercana. Corrígelo con el del tique si quieres.</p>' : ''}
+      <label for="sPrice">Precio total (€)<input id="sPrice" inputmode="decimal" value="${r.price_total != null ? nf(r.price_total, 2) : ''}" placeholder="52,30"></label>
+      <label for="sStation">Gasolinera<input id="sStation" value="${esc(r.station || '')}" placeholder="Repsol Centro"></label>
+      <div class="btns"><button class="btn sec" type="button" data-close>Cancelar</button><button class="btn" type="submit">Guardar</button></div>
+    </form>`;
+  }
+  if (sheet.type === 'pump') {
+    const v = sheet.read || {};
+    const target = sheet.ts ? refuels.refuels.find(r => r.ts === sheet.ts) : null;
+    return `<form class="sheet" id="sheetForm">
+      <span class="k">Foto del surtidor</span>
+      <img src="${sheet.img}" alt="Foto del surtidor" style="width:100%;max-height:200px;object-fit:cover;border-radius:10px">
+      ${sheet.reading ? '<p class="muted">Leyendo los números… (unos segundos)</p>' : `
+      <p class="muted" style="color:${v.ok ? C.ok : C.ac}">${v.ok ? '✓ Leído y cuadra: litros × precio = importe. Revisa y guarda.' : v.error ? esc(v.error) + ' Escríbelos a mano.' : 'No he podido leerlo todo bien: revisa los números antes de guardar.'}</p>
+      <div class="g3" style="gap:8px">
+        <label for="pTotal">Importe €<input id="pTotal" inputmode="decimal" value="${v.total != null ? nf(v.total, 2) : ''}" placeholder="58,18"></label>
+        <label for="pLitres">Litros<input id="pLitres" inputmode="decimal" value="${v.litres != null ? nf(v.litres, 2) : ''}" placeholder="41,00"></label>
+        <label for="pPl">€/L<input id="pPl" inputmode="decimal" value="${v.price_l != null ? nf(v.price_l, 3) : ''}" placeholder="1,419"></label>
+      </div>
+      <p class="muted">${target ? 'Se guarda en el repostaje del ' + new Date(target.ts).toLocaleDateString('es-ES', { day: 'numeric', month: 'long' }) + '.' : 'Se guarda en el repostaje de hoy. Si el coche aún no lo ha detectado, lo apunto en cuanto arranques.'}</p>`}
+      <div class="btns"><button class="btn sec" type="button" data-close>Cancelar</button><button class="btn" type="submit" ${sheet.reading ? 'disabled' : ''}>Guardar</button></div>
+    </form>`;
+  }
+  if (sheet.type === 'parking') {
+    const p = parking || {};
+    const left = p.timer_at ? Math.max(0, Math.round((p.timer_at - Date.now()) / 60e3)) : null;
+    return `<form class="sheet" id="sheetForm">
+      <span class="k">Aparcado desde las ${p.ts ? hm(p.ts) : '—'}</span>
+      <label for="pNote">Nota<input id="pNote" value="${esc(p.note || '')}" placeholder="Planta -2, plaza 34"></label>
+      <span class="k">Avisarme antes de que acabe la zona azul${left != null ? ` · quedan ${left} min` : ''}</span>
+      <div class="g3">${[30, 60, 90, 120, 180].map(m => `<button type="button" class="btn sec" data-min="${m}" style="min-height:44px">${m < 60 ? m + ' min' : nf(m / 60, m % 60 ? 1 : 0) + ' h'}</button>`).join('')}<button type="button" class="btn danger" data-min="0" style="min-height:44px">Quitar</button></div>
+      <p class="muted">Te aviso 10 minutos antes de que se acabe el tiempo.</p>
+      <button type="button" class="btn sec" id="pPlace">📍 Guardar este sitio como lugar (Casa, Trabajo…)</button>
+      ${places.length ? `<p class="muted">Lugares: ${places.map(p => esc(p.name)).join(' · ')}</p>` : ''}
+      <div class="btns"><button class="btn sec" type="button" data-close>Cerrar</button><button class="btn" type="submit">Guardar nota</button></div>
+    </form>`;
+  }
+  if (sheet.type === 'shareimg') {
+    return `<form class="sheet" id="sheetForm" style="max-height:90vh;overflow:auto">
+      <span class="k">Imagen del trayecto</span>
+      <img src="${sheet.url}" alt="Imagen del trayecto para compartir" style="width:100%;border-radius:12px">
+      <div class="btns"><button class="btn sec" type="button" data-close>Cerrar</button><button class="btn" type="submit">Compartir</button></div>
+    </form>`;
+  }
+  if (sheet.type === 'donecost') {
+    return `<form class="sheet" id="sheetForm">
+      <span class="k">${esc(sheet.name)} · apuntado con los km de hoy</span>
+      <label for="dcEur">¿Cuánto te ha costado? (€)<input id="dcEur" inputmode="decimal" placeholder="Déjalo vacío si no ha costado nada"></label>
+      <p class="muted">Se suma a Gastos del coche (categoría Taller).</p>
+      <div class="btns"><button class="btn sec" type="button" data-close>Sin gasto</button><button class="btn" type="submit">Guardar gasto</button></div>
+    </form>`;
+  }
+  if (sheet.type === 'tread') {
+    const l = (tyreSet && tyreSet.tread_last) || {};
+    const zv = (k, z) => { const v = l[k]; return v == null ? null : typeof v === 'number' ? (z === 'c' ? v : null) : v[z]; };
+    const wheel = (k, lab) => `<div class="col" style="gap:4px"><span class="k">${lab}</span><div class="g3" style="gap:6px">
+      ${[['o', 'Ext.'], ['c', 'Centro'], ['i', 'Int.']].map(([z, zl]) => `<label for="tr_${k}_${z}" style="font-size:10px">${zl}<input id="tr_${k}_${z}" inputmode="decimal" placeholder="${zv(k, z) != null ? nf(zv(k, z), 1) : '6,0'}"></label>`).join('')}</div></div>`;
+    return `<form class="sheet" id="sheetForm" style="max-height:88vh;overflow:auto">
+      <span class="k">Profundidad del dibujo (mm)</span>
+      ${wheel('fl', 'Delantera izquierda')}${wheel('fr', 'Delantera derecha')}${wheel('rl', 'Trasera izquierda')}${wheel('rr', 'Trasera derecha')}
+      <label for="trNew">Dibujo de nuevas (mm)<input id="trNew" inputmode="decimal" placeholder="${nf((tyreSet && tyreSet.new_mm) || 7.1, 1)}"></label>
+      <p class="muted">Ext. = lado de fuera del coche, Int. = lado de dentro. Mide en un surco de cada zona. Puedes rellenar solo el centro si no tienes tiempo. Sin medidor: con una moneda de 1 €, si se ve entera la franja dorada quedan unos 3 mm o menos.</p>
+      <div class="btns"><button class="btn sec" type="button" data-close>Cancelar</button><button class="btn" type="submit">Guardar</button></div>
+    </form>`;
+  }
+  if (sheet.type === 'tyreset') {
+    const t = tyreSet || {};
+    return `<form class="sheet" id="sheetForm">
+      <span class="k">Neumáticos montados</span>
+      <label for="tyModel">Modelo<input id="tyModel" value="${esc(t.model || '')}" placeholder="Goodyear Eagle F1 SuperSport"></label>
+      <label for="tySize">Medida<input id="tySize" value="${esc(t.size || '')}" placeholder="225/40 R18"></label>
+      <div class="g2"><label for="tyDate">Montadas el<input id="tyDate" type="date" value="${esc(t.mounted_date || '')}"></label>
+      <label for="tyKm">Km al montarlas<input id="tyKm" inputmode="numeric" value="${t.mounted_km != null ? t.mounted_km : ''}" placeholder="${t.odometer != null ? t.odometer : ''}"></label></div>
+      <div class="g2"><label for="tyTrk">Km de circuito sin registrar<input id="tyTrk" inputmode="numeric" value="${t.track_extra_km != null ? t.track_extra_km : ''}" placeholder="vueltas × longitud"></label>
+      <label for="tyTrd">Días de circuito sin registrar<input id="tyTrd" inputmode="numeric" value="${t.track_extra_days != null ? t.track_extra_days : ''}" placeholder="0"></label></div>
+      <p class="muted">Si no recuerdas los km exactos, pon una aproximación. Circuito: las tandas de antes de tener la app (p. ej. 47 vueltas a Albacete × 3,55 km = 167 km). Las que haga la app ya las cuenta sola. Aviso de rotar cada 10.000 km.</p>
+      <div class="btns"><button class="btn sec" type="button" data-close>Cancelar</button><button class="btn" type="submit">Guardar</button></div>
+    </form>`;
+  }
+  if (sheet.type === 'deadline') {
+    const d = sheet.item || {};
+    return `<form class="sheet" id="sheetForm">
+      <span class="k">${d.id ? esc(d.name) : 'Nueva fecha'}</span>
+      <label for="dName">Nombre<input id="dName" value="${esc(d.name || '')}" placeholder="Revisión del extintor"></label>
+      <label for="dDate">Vence el<input id="dDate" type="date" value="${esc(d.date || '')}"></label>
+      <div class="btns"><button class="btn sec" type="button" data-close>Cancelar</button><button class="btn" type="submit">Guardar</button></div>
+      ${d.id ? '<button class="btn danger" type="button" id="dDelete">Quitar</button>' : ''}
+    </form>`;
+  }
+  if (sheet.type === 'expense') {
+    const x = sheet.item || {};
+    return `<form class="sheet" id="sheetForm">
+      <span class="k">${x.id ? 'Editar gasto' : 'Nuevo gasto'}</span>
+      <label for="xCat">Tipo<select id="xCat" style="font:16px var(--body);background:#0b0d10;color:var(--tx);border:1px solid var(--ln);border-radius:10px;padding:12px">${(expenses ? expenses.cats : ['Otros']).map(c => `<option${c === (x.cat || 'Taller') ? ' selected' : ''}>${c}</option>`).join('')}</select></label>
+      <label for="xDesc">Concepto<input id="xDesc" value="${esc(x.desc || '')}" placeholder="Cambio de aceite y filtro"></label>
+      <div class="g2"><label for="xEur">Importe (€)<input id="xEur" inputmode="decimal" value="${x.eur != null ? nf(x.eur, 2) : ''}" placeholder="120,00"></label>
+      <label for="xDate">Fecha<input id="xDate" type="date" value="${esc(x.date || new Date().toISOString().slice(0, 10))}"></label></div>
+      <div class="btns"><button class="btn sec" type="button" data-close>Cancelar</button><button class="btn" type="submit">Guardar</button></div>
+      ${x.id ? '<button class="btn danger" type="button" id="xDelete">Borrar gasto</button>' : ''}
+    </form>`;
+  }
+  if (sheet.type === 'tracknote') {
+    const d = sheet.item;
+    return `<form class="sheet" id="sheetForm">
+      <span class="k">${esc(d.circuit)} · ${new Date(d.day).toLocaleDateString('es-ES', { day: 'numeric', month: 'long' })}</span>
+      <label for="tnNote">Notas del día<textarea id="tnNote" rows="7" style="font:15px var(--body);background:#0b0d10;color:var(--tx);border:1px solid var(--ln);border-radius:10px;padding:12px" placeholder="Presiones en frío/caliente, reglajes, tiempos, qué mejorar…">${esc(d.note || '')}</textarea></label>
+      <div class="btns"><button class="btn sec" type="button" data-close>Cancelar</button><button class="btn" type="submit">Guardar</button></div>
+    </form>`;
+  }
+  const i = sheet.item || {};
+  return `<form class="sheet" id="sheetForm">
+    <span class="k">${i.id ? 'Editar tarea' : 'Nueva tarea'}</span>
+    <label for="mName">Nombre<input id="mName" value="${esc(i.name || '')}" placeholder="Aceite y filtro" required></label>
+    <div class="g2">
+      <label for="mKm">Cada (km)<input id="mKm" inputmode="numeric" value="${i.interval_km ?? ''}" placeholder="15000"></label>
+      <label for="mMo">Cada (meses)<input id="mMo" inputmode="numeric" value="${i.interval_months ?? ''}" placeholder="12"></label>
+      <label for="mLastKm">Último (km)<input id="mLastKm" inputmode="numeric" value="${i.last_km != null ? Math.round(i.last_km) : ''}" placeholder="${maint && maint.odometer ? Math.round(maint.odometer) : ''}"></label>
+      <label for="mLastDate">Última fecha<input id="mLastDate" type="date" value="${i.last_date || ''}"></label>
+    </div>
+    <label for="mNotes">Notas<input id="mNotes" value="${esc(i.notes || '')}" placeholder="Aceite 5W-30, pastillas PBS ProRace…"></label>
+    <div class="btns"><button class="btn sec" type="button" data-close>Cancelar</button><button class="btn" type="submit">Guardar</button></div>
+    ${i.id ? '<button class="btn danger" type="button" id="mDelete">Borrar tarea</button>' : ''}
+  </form>`;
+}
+
+// ---------- Modo conducción ----------
+function renderDrive() {
+  const host = $('#driveHost');
+  const c = live;
+  const running = c && c.ignition !== 'off';
+  const show = c && driveForced && running; // solo si la abres tú (los datos llegan cada pocos minutos)
+  if (!show) { host.innerHTML = ''; return; }
+  const night = c.location ? !sunUp(c.location.lat, c.location.lon) : (new Date().getHours() >= 19 || new Date().getHours() < 8);
+  const wt = c.oil_c ?? c.coolant_c, hot = c.oil_c != null ? 80 : 85;
+  const oilCol = wt >= hot ? 'var(--ok)' : wt >= 60 ? 'var(--wa)' : 'var(--blue)';
+  const tl = c.trip_live || {};
+  const ago2 = c.data_ts ? Math.round((Date.now() - c.data_ts) / 60e3) : null;
+  host.innerHTML = `<button id="drive" class="${night ? 'night' : ''}" aria-label="Salir de la pantalla del viaje">
+    <span class="row" style="width:100%"><span class="k" style="color:var(--ac);display:flex;align-items:center;gap:8px"><span style="width:8px;height:8px;border-radius:50%;background:var(--ac)"></span>Viaje en curso${night ? ' · noche' : ''}</span>
+      <span class="m" style="font-size:13px;color:#7d858f">${new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}</span></span>
+    <span class="col" style="flex:1;align-items:center;justify-content:center;width:100%;gap:6px">
+      <span class="big-speed" style="font-size:96px">${tl.km != null ? nf(tl.km) : '0'}</span><span class="k" style="font-size:14px">km recorridos · ${tl.mins != null ? clock(tl.mins * 60) : '—'}</span>
+      <span class="m" style="font-size:22px;font-weight:700;margin-top:14px">${tl.avg != null ? nf(tl.avg) + ' km/h de media' : ''}</span>
+      ${tl.fuel_l != null ? `<span class="m" style="font-size:16px;color:#9aa2ab">${nf(tl.fuel_l, 1)} L${tl.l100 ? ' · ' + nf(tl.l100, 1) + ' l/100' : ''}</span>` : ''}
+    </span>
+    <span style="display:grid;grid-template-columns:1fr 1fr;align-items:end;gap:12px;width:100%">
+      <span class="col" style="gap:4px"><span class="k">${c.oil_c != null ? 'Aceite' : 'Motor'}</span><span class="m" style="font-size:40px;font-weight:700;color:${oilCol};line-height:1">${nf(wt)}°</span><span style="font-size:12px;color:${oilCol}">${wt >= hot ? 'A temperatura' : wt >= 60 ? 'Calentando' : 'Frío: suave'}</span></span>
+      <span class="col" style="gap:4px;align-items:flex-end"><span class="k">Autonomía</span><span class="m" style="font-size:40px;font-weight:700;line-height:1">${nf(c.range_km)}</span><span style="font-size:12px;color:#7d858f">km · ${nf(c.fuel_pct)} %</span></span>
+    </span>
+    <span style="text-align:center;font-size:12px;color:#4b525a;width:100%">Dato del coche ${ago2 != null ? (ago2 < 1 ? 'ahora' : 'hace ' + ago2 + ' min') : ''} · toca para salir</span>
+  </button>`;
+  $('#drive').onclick = () => { driveDismissed = true; driveForced = false; renderDrive(); };
+}
+
+// ---------- Render ----------
+function renderBadge() {
+  const running = live && live.ignition !== 'off';
+  const state = !live ? '' : running ? `<span class="chip live" style="color:${C.ac}"><i></i>En marcha</span>`
+    : live.locked === false && live.lock_checking ? `<span class="chip" style="color:${C.wa}"><i></i>Comprobando cierre…</span>`
+    : live.locked === false ? `<span class="chip" style="color:${C.bad}"><i></i>Abierto</span>` : `<span class="chip" style="color:${C.ok}"><i></i>Cerrado</span>`;
+  const src = live && live.source === 'mock' ? `<span class="chip" style="color:${C.wa}">Prueba</span>` : '';
+  $('#badge').innerHTML = tab === 'ajustes' ? '' : tab === 'estado' ? state : src;
+  const [sub, title] = tripDetail && tab === 'viajes' ? [`${dayLabel(tripDetail.start_ts)} · ${hm(tripDetail.start_ts)} → ${hm(tripDetail.end_ts)}`, (tripDetail.from || tripDetail.to ? `${(tripDetail.from || '…').toUpperCase()} → ${(tripDetail.to || '…').toUpperCase()}` : `TRAYECTO #${pad2(tripDetail.id)}`)] : tab === 'estado' && carCfg ? [carCfg.model, carCfg.name.toUpperCase()] : TITLES[tab];
+  $('#hSub').textContent = sub; $('#hTitle').textContent = title;
+}
+
+function render() {
+  document.querySelectorAll('#nav button').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
+  $('#nav').style.display = tab === 'ajustes' ? 'none' : 'grid';
+  renderBadge();
+  let html = '';
+  if (tripDetail && tab === 'viajes') html += `<button class="btn sec" id="backTrips" style="align-self:flex-start;min-height:40px">← Trayectos</button>`;
+  if (notice) html += `<div class="okmsg">${esc(notice)}</div>`;
+  if (error) html += `<div class="err">${esc(error)}</div>`;
+  const wait = '<div class="pn pad"><p class="muted">Conectando con el coche…</p></div>';
+  if (tab === 'ajustes') html += viewAjustes();
+  else if (tab === 'estado') html += live ? viewEstado(live) : error ? '' : wait;
+  else if (tab === 'motor') html += live ? viewMotor(live) : error ? '' : wait;
+  else if (tab === 'viajes') html += viewViajes();
+  else if (tab === 'datos') html += viewDatos();
+  else if (tab === 'taller') html += viewTaller();
+  const main = $('#main');
+  main.classList.toggle('anim', animate);
+  main.innerHTML = html;
+  if (animate) countUp();
+  animate = false;
+  $('#sheetHost').innerHTML = sheet ? `<div class="sheet-bg" id="sheetBg">${sheetHtml()}</div>` : '';
+  afterRender();
+}
+
+function countUp() {
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  document.querySelectorAll('[data-count]').forEach(el => {
+    const to = +el.dataset.count; if (!isFinite(to)) return;
+    const t0 = performance.now(), D = 900;
+    const step = now => { const p = Math.min(1, (now - t0) / D); el.textContent = nf(to * (1 - Math.pow(1 - p, 3))); if (p < 1) requestAnimationFrame(step); };
+    requestAnimationFrame(step);
+  });
+}
+
+function afterRender() {
+  const ph = $('#parkMapHost');
+  if (ph && live && live.location) {
+    const m = mapIn('park', ph, { mini: true });
+    if (m) { const ll = [live.location.lat, live.location.lon]; m.layer.clearLayers(); dot(ll, C.ac, 6).addTo(m.layer); m.fit = () => m.map.setView(ll, 15); m.fit(); }
+  }
+  const th = $('#tripMapHost');
+  if (th && tripDetail) {
+    const m = mapIn('trip', th, { fresh: true });
+    if (m) {
+      m.layer.clearLayers();
+      const p = tripDetail.points;
+      const path = tripDetail.path && tripDetail.path.legs ? tripDetail.path : null;
+      if (path) path.legs.forEach(lg => L.polyline(lg.c, path.sparse || lg.s == null
+        ? { color: C.ac, weight: 5, opacity: .9, lineCap: 'round', dashArray: '2 9' }
+        : { color: speedCol(lg.s), weight: 5, opacity: .95, lineCap: 'round', lineJoin: 'round' }).addTo(m.layer));
+      else for (let i = 0; i < p.length - 1; i++) L.polyline([[p[i][0], p[i][1]], [p[i + 1][0], p[i + 1][1]]], { color: speedCol(p[i][2]), weight: 5, opacity: .95, lineCap: 'round' }).addTo(m.layer);
+      if (p.length) {
+        dot([p[0][0], p[0][1]], C.ok).addTo(m.layer);
+        dot([p[p.length - 1][0], p[p.length - 1][1]], '#f4f5f6').addTo(m.layer);
+        const b = L.latLngBounds(path ? path.legs.flatMap(lg => lg.c) : p.map(q => [q[0], q[1]]));
+        m.fit = () => b.isValid() && !b.getNorthEast().equals(b.getSouthWest()) ? m.map.fitBounds(b, { padding: [28, 28], maxZoom: 16 }) : m.map.setView([p[0][0], p[0][1]], 15);
+        m.fit();
+      }
+    }
+  }
+  document.querySelectorAll('[data-go]').forEach(b => b.onclick = () => go(b.dataset.go));
+  document.querySelectorAll('[data-trip]').forEach(b => b.onclick = async () => {
+    try { tripDetail = await api('/api/trips/' + b.dataset.trip); error = null; } catch (e) { error = e.message; }
+    if (tab !== 'viajes') { tab = 'viajes'; history.replaceState(null, '', '#viajes'); }
+    animate = true; render(); $('#main').scrollTop = 0;
+  });
+  const back = $('#backTrips'); if (back) back.onclick = () => { tripDetail = null; animate = true; render(); };
+  document.querySelectorAll('[data-refuel]').forEach(b => b.onclick = () => { sheet = { type: 'refuel', item: refuels.refuels.find(r => String(r.ts) === b.dataset.refuel) }; render(); });
+  document.querySelectorAll('[data-edit]').forEach(b => b.onclick = () => { sheet = { type: 'maint', item: b.dataset.edit === 'new' ? null : maint.items.find(i => String(i.id) === b.dataset.edit) }; render(); });
+  document.querySelectorAll('[data-done]').forEach(b => b.onclick = async () => {
+    b.disabled = true;
+    try {
+      const it = maint.items.find(x => String(x.id) === b.dataset.done);
+      maint = await api(`/api/maintenance/${b.dataset.done}/done`, { method: 'POST' }); loaded.maint = Date.now();
+      sheet = { type: 'donecost', name: it ? it.name : 'Mantenimiento' }; render();
+    }
+    catch (e) { error = e.message; render(); }
+  });
+  document.querySelectorAll('[data-fuel]').forEach(b => b.onclick = () => { cfg.fuel = b.dataset.fuel; saveCfg(); fuel = null; loaded.fuel = 0; render(); });
+  const csv = $('#copyCsv'); if (csv) csv.onclick = copyCsv;
+  const pb = $('#parkBtn'); if (pb && live && live.ignition === 'off') pb.onclick = async () => {
+    if (!parking) { try { parking = await api('/api/parking'); } catch (e) { error = e.message; render(); return; } }
+    sheet = { type: 'parking' }; render();
+  };
+  document.querySelectorAll('[data-expense]').forEach(b => b.onclick = () => { sheet = { type: 'expense', item: b.dataset.expense === 'new' ? null : expenses.items.find(x => x.id === b.dataset.expense) }; render(); });
+  const fa = $('#favAlertSave'); if (fa) fa.onclick = async () => {
+    try { favHist = await api('/api/fuel/fav/alert', { method: 'POST', body: JSON.stringify({ limit: $('#favAlert').value }) }); flash(favHist.alert ? 'Te aviso si baja de ' + nf(favHist.alert, 3) : 'Aviso de precio quitado'); render(); }
+    catch (e) { error = e.message; render(); }
+  };
+  const gx = $('#gpxBtn'); if (gx) gx.onclick = () => exportGpx(tripDetail);
+  const ix = $('#imgBtn'); if (ix) ix.onclick = () => shareTripImage(tripDetail);
+  document.querySelectorAll('[data-fav]').forEach(b => b.onclick = async e => {
+    e.preventDefault();
+    const s = JSON.parse(b.dataset.fav);
+    const off = fuel && fuel.fav && fuel.fav.id === s.id;
+    try { await api('/api/fuel/fav', { method: 'POST', body: JSON.stringify(off ? {} : s) }); flash(off ? 'Quitada como habitual' : 'Guardada como tu gasolinera'); loaded.fuel = 0; await loadFor(tab, false); render(); }
+    catch (err) { error = err.message; render(); }
+  });
+  document.querySelectorAll('[data-tyreset]').forEach(b => b.onclick = () => { sheet = { type: 'tyreset' }; render(); });
+  document.querySelectorAll('[data-tread]').forEach(b => b.onclick = () => { sheet = { type: 'tread' }; render(); });
+  document.querySelectorAll('[data-prep]').forEach(b => b.onclick = () => { prepTab = b.dataset.prep; haptic(); render(); });
+  document.querySelectorAll('[data-prepck]').forEach(c => c.onchange = () => { const d = prepChecks(); d[c.dataset.prepck] = c.checked; try { localStorage.setItem('fst_prep', JSON.stringify(d)); } catch (e) {} render(); });
+  document.querySelectorAll('[data-prepreset]').forEach(b => b.onclick = () => { try { localStorage.removeItem('fst_prep'); } catch (e) {} render(); });
+  document.querySelectorAll('[data-period]').forEach(b => b.onclick = () => { viajesPeriod = b.dataset.period; haptic(); render(); });
+  document.querySelectorAll('[data-tfilter]').forEach(b => b.onclick = () => { tripFilter = b.dataset.tfilter; tripsAll = false; haptic(); render(); });
+  document.querySelectorAll('[data-tmore]').forEach(b => b.onclick = () => { tripsAll = true; render(); });
+  document.querySelectorAll('[data-lasttrip]').forEach(b => b.onclick = async () => {
+    try { const d = await api('/api/trips/' + b.dataset.lasttrip); go('viajes'); tripDetail = d; error = null; } catch (e) { error = e.message; }
+    render(); const mn = document.querySelector('main'); if (mn) mn.scrollTop = 0;
+  });
+  document.querySelectorAll('[data-goruedas]').forEach(b => b.onclick = () => { location.hash = '#taller'; setTimeout(() => { const el = document.getElementById('ruedas'); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 400); });
+  document.querySelectorAll('[data-tyrerot]').forEach(b => b.onclick = async () => {
+    try { tyreSet = await api('/api/tyreset', { method: 'POST', body: JSON.stringify({ rotated: true }) }); flash('Rotación apuntada'); render(); } catch (e) { error = e.message; render(); }
+  });
+  document.querySelectorAll('[data-deadline]').forEach(b => b.onclick = () => { sheet = { type: 'deadline', item: b.dataset.deadline === 'new' ? null : deadlines.find(d => d.id === b.dataset.deadline) }; render(); });
+  document.querySelectorAll('[data-tracknote]').forEach(b => b.onclick = () => { sheet = { type: 'tracknote', item: trackdays[+b.dataset.tracknote] }; render(); });
+  document.querySelectorAll('[data-track]').forEach(b => b.onclick = async () => {
+    const v = b.dataset.track;
+    try {
+      await api('/api/track', { method: 'POST', body: JSON.stringify(v === 'off' ? { until: null } : v === 'midnight' ? { until: 'midnight' } : { hours: +v }) });
+      flash(v === 'off' ? 'Modo circuito desactivado' : 'Modo circuito activado');
+      loadLive();
+    } catch (e) { error = e.message; render(); }
+  });
+  const ac = $('#addCircuit'); if (ac) ac.onclick = async () => {
+    const name = prompt('Nombre del circuito (se guarda la ubicación actual del coche):');
+    if (!name) return;
+    try {
+      const r = await api('/api/circuits/custom', { method: 'POST', body: JSON.stringify({ name }) });
+      if (r.error) throw new Error(r.error);
+      customCircuits = r.custom; flash('Circuito guardado: se detectará solo a partir de ahora'); loadLive();
+    } catch (e) { error = e.message; render(); }
+  };
+  document.querySelectorAll('[data-delcircuit]').forEach(b => b.onclick = async () => {
+    if (!confirm('¿Quitar este circuito?')) return;
+    try { customCircuits = (await api('/api/circuits/custom/' + encodeURIComponent(b.dataset.delcircuit), { method: 'DELETE' })).custom; render(); loadLive(); }
+    catch (e) { error = e.message; render(); }
+  });
+  const rc = $('#refreshCar'); if (rc) rc.onclick = async () => {
+    rc.disabled = true; rc.textContent = 'Pidiendo…';
+    try {
+      const r = await api('/api/ford/refresh', { method: 'POST' });
+      if (!r.ok) throw new Error(r.error);
+      flash('Pedido al coche. Los datos nuevos tardan en llegar entre 30 s y 2 min.');
+      [30e3, 60e3, 120e3].forEach(ms => setTimeout(loadLive, ms));
+    } catch (e) { error = e.message; render(); }
+  };
+  const db = $('#driveBtn'); if (db) db.onclick = () => { driveForced = true; renderDrive(); };
+  bindSettings(); bindSheet();
+}
+
+function saveCfg() { try { localStorage.setItem('fst_cfg', JSON.stringify(cfg)); } catch (e) {} }
+
+function bindSettings() {
+  const form = $('#cfgForm');
+  if (form) form.onsubmit = e => {
+    e.preventDefault();
+    cfg.url = $('#fUrl').value.trim(); cfg.key = $('#fKey').value; saveCfg();
+    live = hist = battery = refuels = trips = records = maint = tripDetail = fuel = null; loaded = {}; error = null;
+    go('estado'); loadLive();
+  };
+  const cancel = $('#cancelCfg'); if (cancel) cancel.onclick = () => go('estado');
+  const saveGuard = async () => {
+    try {
+      guard = await api('/api/guard', { method: 'POST', body: JSON.stringify({ enabled: $('#gEnabled').checked, night: $('#gNight').checked, from: $('#gFrom').value, to: $('#gTo').value }) });
+      loaded.guard = Date.now(); flash('Vigilancia guardada');
+    } catch (e) { error = e.message; render(); }
+  };
+  const cf = $('#carForm'); if (cf) cf.onsubmit = async ev => {
+    ev.preventDefault();
+    try { carCfg = await api('/api/car-config', { method: 'POST', body: JSON.stringify({ name: $('#cName').value, model: $('#cModel').value, tank_l: $('#cTank').value }) }); localStorage.setItem('fst_car', JSON.stringify(carCfg)); flash('Guardado'); }
+    catch (e) { flash('No se ha podido guardar: ' + e.message); }
+  };
+  const cs = $('#copySiri'); if (cs) cs.onclick = async () => { try { await navigator.clipboard.writeText(cfg.url.replace(/\/+$/, '') + '/api/siri?k=' + encodeURIComponent(cfg.key)); flash('Dirección copiada (con tu contraseña: no la compartas)'); } catch (e) { flash('No se ha podido copiar'); } };
+  const tsi = $('#testSiri'); if (tsi) tsi.onclick = async () => {
+    const o = $('#siriOut'); o.textContent = 'Preguntando…';
+    try { const r = await fetch(cfg.url.replace(/\/+$/, '') + '/api/siri', { headers: { 'x-app-key': cfg.key } }); o.textContent = await r.text(); }
+    catch (e) { o.textContent = 'No responde: ' + e.message; }
+  };
+  const cw = $('#copyWidget'); if (cw) cw.onclick = async () => {
+    try {
+      // Safari solo deja copiar dentro del toque: se le pasa la descarga como promesa.
+      const blob = fetch('herramientas/widget-scriptable.js', { cache: 'no-store' }).then(r => r.text()).then(t => new Blob([t], { type: 'text/plain' }));
+      if (window.ClipboardItem) await navigator.clipboard.write([new ClipboardItem({ 'text/plain': blob })]);
+      else await navigator.clipboard.writeText(await (await blob).text());
+      flash('Código copiado. Pégalo en Scriptable.');
+    } catch (e) { error = 'No se pudo copiar: ' + e.message; render(); }
+  };
+  const ts = $('#tSave'); if (ts) ts.onclick = async () => {
+    try {
+      tyrePrefs = await api('/api/tyres', { method: 'POST', body: JSON.stringify({ front: $('#tFront').value, rear: $('#tRear').value }) });
+      flash('Presiones guardadas'); live = null; loadLive();
+    } catch (e) { error = e.message; render(); }
+  };
+  ['#gEnabled', '#gNight', '#gFrom', '#gTo'].forEach(id => { const el = $(id); if (el) el.onchange = saveGuard; });
+  document.querySelectorAll('[data-backup]').forEach(b => b.onclick = async () => {
+    try {
+      const data = await api('/api/backups/' + encodeURIComponent(b.dataset.backup));
+      await shareBlob(new Blob([JSON.stringify(data)], { type: 'application/json' }), `fiesta-st-${b.dataset.backup}.json`, 'Copia');
+    } catch (e) { error = e.message; render(); }
+  });
+  const bk = $('#backupBtn'); if (bk) bk.onclick = async () => {
+    bk.disabled = true; bk.textContent = 'Preparando…';
+    try {
+      const data = await api('/api/export');
+      const name = `fiesta-st-copia-${new Date().toISOString().slice(0, 10)}.json`;
+      const file = new File([JSON.stringify(data)], name, { type: 'application/json' });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) await navigator.share({ files: [file], title: name });
+      else { const a = document.createElement('a'); a.href = URL.createObjectURL(file); a.download = name; document.body.appendChild(a); a.click(); a.remove(); }
+      flash('Copia lista: ' + nf(data.snapshots.length) + ' registros y ' + nf(data.trips.length) + ' trayectos');
+    } catch (e) { if (e.name !== 'AbortError') { error = e.message; render(); } else { bk.disabled = false; bk.textContent = 'Descargar copia'; } }
+  };
+  const on = $('#pushOn'); if (on) on.onclick = async () => {
+    on.disabled = true;
+    try { await enablePush(); flash('Avisos activados en este móvil'); } catch (e) { error = e.message; render(); }
+  };
+  const test = $('#pushTest'); if (test) test.onclick = async () => {
+    test.disabled = true;
+    try {
+      const r = await api('/api/push/test', { method: 'POST' });
+      if (!r.devices) throw new Error('Todavía no hay ningún móvil con los avisos activados.');
+      flash(r.sent ? 'Aviso de prueba enviado' : 'No se pudo enviar el aviso. Prueba a activarlos de nuevo.');
+    } catch (e) { error = e.message; render(); }
+  };
+}
+
+// Foto del surtidor: se reduce en el móvil y la IA del servidor lee importe, litros y €/L
+// Input fijo fuera de lo que se repinta: así iOS siempre entrega la foto aunque la pantalla se refresque
+let pumpTs = null;
+const pumpFile = (() => {
+  const i = document.createElement('input'); i.type = 'file'; i.accept = 'image/*'; i.id = 'pumpFile'; i.className = 'pumpIn';
+  document.body.appendChild(i);
+  i.addEventListener('change', () => { pumpChosen(i); });
+  return i;
+})();
+async function pumpChosen(inp) {
+  const f = inp.files && inp.files[0]; if (!f) return;
+  const ts = pumpTs; inp.value = '';
+  try {
+    const img = await shrinkImage(f, 1400);
+    sheet = { type: 'pump', ts, img, reading: true }; render();
+    let read;
+    try { read = await api('/api/pump/read', { method: 'POST', body: JSON.stringify({ image: img }) }); }
+    catch (e) { read = { error: e.message }; }
+    if (sheet && sheet.type === 'pump' && sheet.img === img) { sheet.reading = false; sheet.read = read; render(); }
+  } catch (e) { error = 'No he podido abrir la foto: ' + (e.message || e); render(); }
+}
+function shrinkImage(file, max) {
+  return new Promise((ok, ko) => {
+    const u = URL.createObjectURL(file), im = new Image();
+    im.onload = () => {
+      const k = Math.min(1, max / Math.max(im.width, im.height));
+      const cv = document.createElement('canvas'); cv.width = Math.round(im.width * k); cv.height = Math.round(im.height * k);
+      cv.getContext('2d').drawImage(im, 0, 0, cv.width, cv.height); URL.revokeObjectURL(u);
+      ok(cv.toDataURL('image/jpeg', 0.82));
+    };
+    im.onerror = () => { URL.revokeObjectURL(u); ko(new Error('formato de imagen no compatible')); }; im.src = u;
+  });
+}
+async function loadPumpPhoto(ts) {
+  const el = $('#sPhoto'); if (!el) return;
+  try {
+    const r = await fetch(cfg.url.replace(/\/+$/, '') + '/api/refuels/' + ts + '/photo', { headers: { 'x-app-key': cfg.key } });
+    if (r.ok) el.src = URL.createObjectURL(await r.blob()); else el.remove();
+  } catch (e) { el.remove(); }
+}
+
+function bindSheet() {
+  document.querySelectorAll('label[data-pump]').forEach(l => l.addEventListener('click', () => { pumpTs = Number(l.dataset.pump) || null; haptic(); }));
+  const bg = $('#sheetBg'); if (!bg) return;
+  if (sheet && sheet.type === 'refuel' && sheet.item.photo) loadPumpPhoto(sheet.item.ts);
+  bg.onclick = e => { if (e.target === bg) closeSheet(); };
+  bg.querySelectorAll('[data-close]').forEach(b => b.onclick = closeSheet);
+  const form = $('#sheetForm');
+  form.onsubmit = async e => {
+    e.preventDefault();
+    if (sheet.type === 'shareimg') { shareBlob(sheet.blob, sheet.name, 'Trayecto'); return; } // justo tras el toque, como exige iOS
+    const btn = form.querySelector('[type=submit]'); btn.disabled = true;
+    try {
+      if (sheet.type === 'donecost') {
+        const eur = $('#dcEur').value.trim();
+        if (eur) { expenses = await api('/api/expenses', { method: 'POST', body: JSON.stringify({ cat: 'Taller', desc: sheet.name, eur, date: new Date().toISOString().slice(0, 10) }) }); loaded.expenses = 0; flash('Gasto apuntado'); }
+        sheet = null;
+      } else if (sheet.type === 'tread') {
+        const tread = {};
+        for (const k of ['fl', 'fr', 'rl', 'rr']) tread[k] = { o: $('#tr_' + k + '_o').value, c: $('#tr_' + k + '_c').value, i: $('#tr_' + k + '_i').value };
+        tyreSet = await api('/api/tyreset', { method: 'POST', body: JSON.stringify({ tread, new_mm: $('#trNew').value }) });
+        sheet = null; flash('Medida guardada');
+      } else if (sheet.type === 'tyreset') {
+        tyreSet = await api('/api/tyreset', { method: 'POST', body: JSON.stringify({ model: $('#tyModel').value, size: $('#tySize').value, mounted_date: $('#tyDate').value, mounted_km: $('#tyKm').value, track_extra_km: $('#tyTrk').value || 0, track_extra_days: $('#tyTrd').value || 0 }) });
+        sheet = null; flash('Neumáticos guardados');
+      } else if (sheet.type === 'deadline') {
+        deadlines = (await api('/api/deadlines', { method: 'POST', body: JSON.stringify({ id: sheet.item && sheet.item.id, name: $('#dName').value, date: $('#dDate').value }) })).items;
+        sheet = null; flash('Fecha guardada');
+      } else if (sheet.type === 'expense') {
+        expenses = await api('/api/expenses', { method: 'POST', body: JSON.stringify({ id: sheet.item && sheet.item.id, cat: $('#xCat').value, desc: $('#xDesc').value, eur: $('#xEur').value, date: $('#xDate').value }) });
+        sheet = null; flash('Gasto guardado');
+      } else if (sheet.type === 'tracknote') {
+        await api('/api/trackdays/note', { method: 'POST', body: JSON.stringify({ day: sheet.item.day, circuit: sheet.item.circuit, note: $('#tnNote').value }) });
+        trackdays = (await api('/api/trackdays')).days; sheet = null; flash('Notas guardadas');
+      } else if (sheet.type === 'parking') {
+        parking = await api('/api/parking', { method: 'POST', body: JSON.stringify({ note: $('#pNote').value.trim() }) });
+        sheet = null; flash('Nota guardada');
+      } else if (sheet.type === 'pump') {
+        const r = await api('/api/pump/save', { method: 'POST', body: JSON.stringify({ ts: sheet.ts, total: num($('#pTotal').value), litres: num($('#pLitres').value), price_l: num($('#pPl').value), image: sheet.img }) });
+        refuels = await api('/api/refuels'); loaded.datos = Date.now();
+        sheet = null; flash(r.pending ? 'Apuntado: lo pongo en el repostaje cuando el coche lo detecte' : 'Repostaje guardado con la foto');
+      } else if (sheet.type === 'refuel') {
+        const price = $('#sPrice').value.trim();
+        await api('/api/refuels/' + sheet.item.ts, { method: 'POST', body: JSON.stringify({ price_total: price ? num(price) : null, station: $('#sStation').value.trim(), litres: $('#sLitres').value.trim() || null }) });
+        refuels = await api('/api/refuels'); loaded.datos = Date.now();
+        sheet = null; flash('Repostaje guardado');
+      } else {
+        const body = { id: sheet.item && sheet.item.id, name: $('#mName').value, interval_km: num($('#mKm').value), interval_months: num($('#mMo').value),
+          last_km: num($('#mLastKm').value), last_date: $('#mLastDate').value, notes: $('#mNotes').value };
+        maint = await api('/api/maintenance', { method: 'POST', body: JSON.stringify(body) }); loaded.maint = Date.now();
+        sheet = null; flash('Tarea guardada');
+      }
+    } catch (err) {
+      btn.disabled = false;
+      let m = form.querySelector('.err');
+      if (!m) { m = document.createElement('div'); m.className = 'err'; form.prepend(m); }
+      m.textContent = err.message;
+    }
+  };
+  form.querySelectorAll('[data-min]').forEach(b => b.onclick = async () => {
+    try {
+      parking = await api('/api/parking', { method: 'POST', body: JSON.stringify({ minutes: +b.dataset.min }) });
+      sheet = null; flash(+b.dataset.min ? `Te aviso 10 minutos antes de que pasen ${b.textContent.trim()}` : 'Temporizador quitado');
+    } catch (e) { error = e.message; sheet = null; render(); }
+  });
+  const pp = $('#pPlace'); if (pp) pp.onclick = async () => {
+    const name = prompt('Nombre del lugar (se guarda donde está aparcado el coche):', places.length ? '' : 'Casa');
+    if (!name) return;
+    try { places = (await api('/api/places', { method: 'POST', body: JSON.stringify({ name }) })).places; loaded.trips = 0; flash('Lugar guardado: ' + name); }
+    catch (e) { error = e.message; render(); }
+  };
+  const xd = $('#xDelete'); if (xd) xd.onclick = async () => {
+    try { expenses = await api('/api/expenses', { method: 'POST', body: JSON.stringify({ delete: sheet.item.id }) }); sheet = null; flash('Gasto borrado'); }
+    catch (e) { error = e.message; sheet = null; render(); }
+  };
+  const dd = $('#dDelete'); if (dd) dd.onclick = async () => {
+    try { deadlines = (await api('/api/deadlines/' + encodeURIComponent(sheet.item.id), { method: 'DELETE' })).items; sheet = null; flash('Fecha quitada'); }
+    catch (e) { error = e.message; sheet = null; render(); }
+  };
+  const del = $('#mDelete'); if (del) del.onclick = async () => {
+    if (del.dataset.confirm !== '1') { del.dataset.confirm = '1'; del.textContent = 'Toca otra vez para borrar'; return; }
+    try { maint = await api('/api/maintenance/' + sheet.item.id, { method: 'DELETE' }); sheet = null; flash('Tarea borrada'); }
+    catch (e) { error = e.message; sheet = null; render(); }
+  };
+}
+function closeSheet() { sheet = null; render(); }
+function flash(msg) { notice = msg; error = null; render(); setTimeout(() => { if (notice === msg) { notice = null; if (!sheet) render(); } }, 2500); }
+
+async function copyCsv() {
+  const lines = [['fecha', 'km', 'litros', 'precio_total_eur', 'eur_litro', 'consumo_l100km', 'gasolinera', 'precio_estimado'].join(';')];
+  for (const r of refuels.refuels.slice().reverse()) lines.push([new Date(r.ts).toISOString().slice(0, 10), Math.round(r.odometer), nf(r.litres, 1),
+    r.price_total != null ? nf(r.price_total, 2) : '', r.price_l != null ? nf(r.price_l, 3) : '', r.l100 != null ? nf(r.l100, 1) : '', r.station || '', r.price_auto ? 'sí' : ''].join(';'));
+  try { await navigator.clipboard.writeText(lines.join('\n')); flash('CSV copiado: pégalo en tu Cuaderno o en una hoja de cálculo'); }
+  catch (e) { error = 'No se pudo copiar al portapapeles.'; render(); }
+}
+
+// ---------- Avisos push ----------
+function b64ToU8(s) { s = s.replace(/-/g, '+').replace(/_/g, '/'); while (s.length % 4) s += '='; return Uint8Array.from(atob(s), c => c.charCodeAt(0)); }
+async function enablePush() {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window) || typeof Notification === 'undefined')
+    throw new Error('Este navegador no admite avisos. En iPhone, abre la app desde el icono de la pantalla de inicio.');
+  const perm = await Notification.requestPermission();
+  if (perm !== 'granted') throw new Error('No has dado permiso. Puedes activarlo en Ajustes del iPhone → Notificaciones → Fiesta ST.');
+  const reg = await navigator.serviceWorker.ready;
+  const { key } = await api('/api/push/key');
+  let sub = await reg.pushManager.getSubscription();
+  if (sub) {
+    const cur = sub.options && sub.options.applicationServerKey;
+    if (cur && btoa(String.fromCharCode(...new Uint8Array(cur))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '') !== key) { await sub.unsubscribe(); sub = null; }
+  }
+  if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToU8(key) });
+  await api('/api/push/subscribe', { method: 'POST', body: JSON.stringify(sub.toJSON()) });
+}
+
+// ---------- Navegación ----------
+function go(t) {
+  tab = t; sheet = null; animate = true;
+  if (t !== 'viajes') tripDetail = null;
+  if (TABS.includes(t) && location.hash !== '#' + t) history.replaceState(null, '', '#' + t);
+  render();
+  if (t === 'ajustes') { clearTimeout(timer); if (cfg.url) loadFor('ajustes'); } else { loadFor(t); schedule(); }
+}
+document.querySelectorAll('#nav button').forEach(b => b.onclick = () => {
+  if (b.dataset.tab === 'viajes' && tab === 'viajes') tripDetail = null;
+  go(b.dataset.tab);
+});
+$('#cfgBtn').onclick = () => go('ajustes');
+window.addEventListener('hashchange', () => { const h = location.hash.slice(1); if (TABS.includes(h) && h !== tab) go(h); });
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && cfg.url && tab !== 'ajustes') { loadLive(); loadFor(tab, true); } else clearTimeout(timer);
+});
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => {});
+// Alto real de la pantalla: iOS en modo app (icono) a veces informa de menos alto y deja la parte de abajo cortada.
+function fitScreen() {
+  const portrait = window.matchMedia('(orientation: portrait)').matches;
+  // iOS 26 en modo app solo pinta hasta innerHeight (el resto queda en negro): la app ocupa justo eso
+  // y, si sobra la franja de abajo, la barra no necesita el margen de la raya de inicio.
+  const h = window.innerHeight;
+  const full = portrait ? Math.max(screen.height, screen.width) : Math.min(screen.height, screen.width);
+  document.documentElement.classList.toggle('vpshort', standalone && full - h > 30);
+  document.documentElement.style.setProperty('--app-h', h + 'px');
+}
+fitScreen();
+['resize', 'orientationchange', 'pageshow', 'focus'].forEach(ev => window.addEventListener(ev, () => { fitScreen(); setTimeout(fitScreen, 300); }));
+document.addEventListener('visibilitychange', () => { if (!document.hidden) setTimeout(fitScreen, 100); });
+setTimeout(fitScreen, 100); setTimeout(fitScreen, 800);
+
+
+render();
+if (cfg.url && cfg.key) {
+  loadLive(); loadFor(tab);
+  if (tab !== 'datos') api('/api/refuels').then(r => { refuels = r; if (tab === 'estado' && !sheet) render(); }).catch(() => {});
+}
+</script>
+</body>
+</html>
