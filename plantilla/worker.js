@@ -1147,14 +1147,14 @@ async function trackPrep(env) {
 async function carConfig(env) {
   const r = await env.DB.prepare("SELECT v FROM kv WHERE k = 'car_cfg'").first();
   const o = r ? JSON.parse(r.v) : {};
-  return { name: o.name || 'MI ST', model: o.model || 'Fiesta ST · Mk8', tank_l: o.tank_l || TANK_L };
+  return { name: o.name || '', model: o.model || '', tank_l: o.tank_l || TANK_L };
 }
 async function setCarConfig(env, b) {
   const cur = await carConfig(env);
   const t = Number(String(b.tank_l ?? '').replace(',', '.'));
   const o = {
-    name: String(b.name ?? cur.name).trim().slice(0, 20) || cur.name,
-    model: String(b.model ?? cur.model).trim().slice(0, 40) || cur.model,
+    name: String(b.name ?? cur.name).trim().slice(0, 20),
+    model: String(b.model ?? cur.model).trim().slice(0, 40),
     tank_l: t > 20 && t < 150 ? Math.round(t) : cur.tank_l
   };
   await env.DB.prepare("INSERT OR REPLACE INTO kv VALUES ('car_cfg', ?)").bind(JSON.stringify(o)).run();

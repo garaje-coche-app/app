@@ -95,7 +95,7 @@ svg text{font-family:var(--mono)}
 </head>
 <body>
 <header>
-  <div class="col" style="gap:2px"><span class="k" id="hSub">Fiesta ST · Mk8</span><span class="title" id="hTitle">MI ST</span></div>
+  <div class="col" style="gap:2px"><span class="k" id="hSub">Tu coche</span><span class="title" id="hTitle">MI COCHE</span></div>
   <div style="display:flex;align-items:center;gap:8px">
     <span id="badge"></span>
     <button class="chip" id="cfgBtn" aria-label="Ajustes" style="padding:9px;background:none">
@@ -122,7 +122,7 @@ const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '
 const num = v => { const n = parseFloat(String(v).replace(',', '.')); return isNaN(n) ? null : n; };
 const C = { ac: '#ffd400', ok: '#2ee59d', wa: '#ffb21e', bad: '#ff4d3d', blue: '#4aa3ff', mu: '#7d858f', tx: '#f4f5f6' };
 const TABS = ['estado', 'viajes', 'motor', 'datos', 'taller'];
-const TITLES = { estado: ['Fiesta ST · Mk8', 'MI ST'], viajes: ['Últimos trayectos', 'VIAJES'], motor: ['Telemetría', 'MOTOR'], datos: ['Consumo, gasto y batería', 'DATOS'], taller: ['Mantenimiento', 'TALLER'], ajustes: ['Conexión y avisos', 'AJUSTES'] };
+const TITLES = { estado: ['Tu coche', 'MI COCHE'], viajes: ['Últimos trayectos', 'VIAJES'], motor: ['Telemetría', 'MOTOR'], datos: ['Consumo, gasto y batería', 'DATOS'], taller: ['Mantenimiento', 'TALLER'], ajustes: ['Conexión y avisos', 'AJUSTES'] };
 // CARTO ahora pide clave: mapa de OpenStreetMap (gratis, sin clave) oscurecido con un filtro.
 const TILE = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 const standalone = window.navigator.standalone === true || matchMedia('(display-mode: standalone)').matches;
@@ -840,7 +840,7 @@ async function shareTripImage(t) {
   g.fillStyle = 'rgba(10,11,13,.7)'; g.fillRect(box.x + box.w - 230, box.y + box.h - 34, 214, 24);
   g.fillStyle = '#9aa1a9'; g.font = '500 18px "Inter Tight", sans-serif'; g.textAlign = 'right'; g.fillText('© OpenStreetMap', box.x + box.w - 22, box.y + box.h - 16); g.textAlign = 'left';
   // Textos: el título se reduce hasta caber y, si hace falta, va en dos líneas
-  const model = carCfg && carCfg.model ? carCfg.model.split('·')[0].trim() : 'Fiesta ST';
+  const model = carCfg && carCfg.model ? carCfg.model.split('·')[0].trim() : 'Mi coche';
   g.fillStyle = '#ffd400'; g.font = '700 32px "Chakra Petch", monospace'; g.fillText(model.toUpperCase(), 60, 96);
   const from = (t.from || '').toUpperCase(), to = (t.to || '').toUpperCase();
   const maxW = W - 120;
@@ -1192,10 +1192,10 @@ function viewAjustes() {
   <form class="pn pad col" id="carForm" style="gap:10px">
     <span class="k">Tu coche</span>
     <div class="g2">
-      <label for="cName">Nombre corto<input id="cName" maxlength="20" value="${esc((carCfg && carCfg.name) || 'MI ST')}"></label>
+      <label for="cName">Nombre corto<input id="cName" maxlength="20" placeholder="MI ST" value="${esc((carCfg && carCfg.name) || '')}"></label>
       <label for="cTank">Depósito (L)<input id="cTank" inputmode="numeric" value="${esc(String((carCfg && carCfg.tank_l) || 45))}"></label>
     </div>
-    <label for="cModel">Modelo<input id="cModel" maxlength="40" value="${esc((carCfg && carCfg.model) || 'Fiesta ST · Mk8')}"></label>
+    <label for="cModel">Modelo<input id="cModel" maxlength="40" placeholder="Fiesta ST · Mk8" value="${esc((carCfg && carCfg.model) || '')}"></label>
     <button class="btn sec" type="submit">Guardar</button>
   </form>
   <div class="pn pad col" style="gap:10px">
@@ -1435,7 +1435,7 @@ function renderBadge() {
     : live.locked === false ? `<span class="chip" style="color:${C.bad}"><i></i>Abierto</span>` : `<span class="chip" style="color:${C.ok}"><i></i>Cerrado</span>`;
   const src = live && live.source === 'mock' ? `<span class="chip" style="color:${C.wa}">Prueba</span>` : '';
   $('#badge').innerHTML = tab === 'ajustes' ? '' : tab === 'estado' ? state : src;
-  const [sub, title] = tripDetail && tab === 'viajes' ? [`${dayLabel(tripDetail.start_ts)} · ${hm(tripDetail.start_ts)} → ${hm(tripDetail.end_ts)}`, (tripDetail.from || tripDetail.to ? `${(tripDetail.from || '…').toUpperCase()} → ${(tripDetail.to || '…').toUpperCase()}` : `TRAYECTO #${pad2(tripDetail.id)}`)] : tab === 'estado' && carCfg ? [carCfg.model, carCfg.name.toUpperCase()] : TITLES[tab];
+  const [sub, title] = tripDetail && tab === 'viajes' ? [`${dayLabel(tripDetail.start_ts)} · ${hm(tripDetail.start_ts)} → ${hm(tripDetail.end_ts)}`, (tripDetail.from || tripDetail.to ? `${(tripDetail.from || '…').toUpperCase()} → ${(tripDetail.to || '…').toUpperCase()}` : `TRAYECTO #${pad2(tripDetail.id)}`)] : tab === 'estado' && carCfg ? [carCfg.model || 'Tu coche', (carCfg.name || 'MI COCHE').toUpperCase()] : TITLES[tab];
   $('#hSub').textContent = sub; $('#hTitle').textContent = title;
 }
 
