@@ -1182,7 +1182,7 @@ function viewAjustes() {
   const serverForm = `
   <form class="pn pad col" id="cfgForm" style="gap:12px">
     <span class="k">Conexión con tu servidor</span>
-    <label for="fUrl">URL del Worker<input id="fUrl" type="url" inputmode="url" autocapitalize="off" autocorrect="off" placeholder="https://mi-coche-api.tu-usuario.workers.dev" value="${esc(cfg.url || '')}" required></label>
+    <label for="fUrl">URL del Worker<input id="fUrl" type="text" inputmode="url" autocapitalize="off" autocorrect="off" placeholder="https://mi-coche-api.tu-usuario.workers.dev" value="${esc(cfg.url || '')}" required></label>
     <label for="fKey">Contraseña (APP_KEY)<input id="fKey" type="password" autocomplete="current-password" value="${esc(cfg.key || '')}" required></label>
     <button class="btn" type="submit">Guardar y conectar</button>
   </form>
@@ -1596,7 +1596,9 @@ function bindSettings() {
   const form = $('#cfgForm');
   if (form) form.onsubmit = e => {
     e.preventDefault();
-    cfg.url = $('#fUrl').value.trim(); cfg.key = $('#fKey').value; saveCfg();
+    let u = $('#fUrl').value.trim().replace(/\s+/g, '').replace(/\/+$/, '').replace(/\/api$/, '');
+    if (u && !/^https?:\/\//i.test(u)) u = 'https://' + u; // sin https:// también vale
+    cfg.url = u; cfg.key = $('#fKey').value.trim(); saveCfg();
     live = hist = battery = refuels = trips = records = maint = tripDetail = fuel = null; loaded = {}; error = null;
     go('estado'); loadLive();
   };
